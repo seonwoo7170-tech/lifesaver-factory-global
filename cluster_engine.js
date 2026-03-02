@@ -346,7 +346,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });

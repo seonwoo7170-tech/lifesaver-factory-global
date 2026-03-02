@@ -53,15 +53,15 @@ function clean(raw, defType = 'obj') {
     return defType === 'obj' ? '{ }' : '[]';
 }
 
-async function callAI(model, prompt, retry = 0, delay = Math.random() * 2000 + 1000) {
+async function callAI(model, prompt, retry = 0, delay = Math.random() * 5000 + 10000) {
     try {
         const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER BLOGGER.]\\n' + prompt);
         return r.response.text().trim();
     } catch (e) {
-        if (String(e.message).includes('429') && retry < 5) {
-            const jitter = Math.random() * 1000;
+        if (String(e.message).includes('429') && retry < 8) {
+            const jitter = Math.random() * 5000;
             const nextDelay = delay * 2 + jitter;
-            report(`   ⏳ [API 429 감지] 제미나이 비율 제한. ${Math.round(nextDelay/1000)}초 후 백오프 재시도... (${retry+1}/5회)`);
+            report(`   ⏳ [API 429 감지] 제미나이 비율 제한. ${Math.round(nextDelay/1000)}초 후 백오프 재시도... (${retry+1}/8회)`);
             await new Promise(res => setTimeout(res, nextDelay));
             return callAI(model, prompt, retry + 1, nextDelay);
         }
@@ -346,7 +346,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });

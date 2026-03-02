@@ -53,9 +53,9 @@ function clean(raw, defType = 'obj') {
     return defType === 'obj' ? '{ }' : '[]';
 }
 
-async function callAI(model, prompt, retry = 0, delay = Math.random() * 5000 + 10000) {
+async function callAI(model, prompt, retry = 0, delay = Math.random() * 5000 + 15000) {
     try {
-        const r = await model.generateContent('[SYSTEM: ACT AS A TOP-TIER BLOGGER.]\\n' + prompt);
+        const r = await model.generateContent(prompt);
         return r.response.text().trim();
     } catch (e) {
         if (String(e.message).includes('429') && retry < 8) {
@@ -346,10 +346,15 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ 
+        model: 'gemini-1.5-flash-8b',
+        systemInstruction: 'Act as a top-tier SEO expert and professional blogger writing high-quality content.'
+    });
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
+    report('🛡️ [Safety Mode]: 구글 IP 차단 우회를 위해 60초간 대기 후 작업을 시작합니다...');
+    await new Promise(r => setTimeout(r, 60000));
     let globalArchives = [];
     try {
         const archRes = await blogger.posts.list({ blogId: config.blog_id, maxResults: 15, fields: 'items(title,url)' });

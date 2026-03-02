@@ -347,14 +347,14 @@ async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ 
-        model: 'gemini-1.5-flash-8b',
+        model: 'gemini-2.0-flash',
         systemInstruction: 'Act as a top-tier SEO expert and professional blogger writing high-quality content.'
     });
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
-    report('🛡️ [Safety Mode]: 구글 IP 차단 우회를 위해 60초간 대기 후 작업을 시작합니다...');
-    await new Promise(r => setTimeout(r, 60000));
+    report('🛡️ [Safety Mode]: IP 평판 및 자동화 감지 우회를 위해 90초간 대기 후 작업을 시작합니다...');
+    await new Promise(r => setTimeout(r, 90000));
     let globalArchives = [];
     try {
         const archRes = await blogger.posts.list({ blogId: config.blog_id, maxResults: 15, fields: 'items(title,url)' });

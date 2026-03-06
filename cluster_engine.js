@@ -75,6 +75,11 @@ HTML 소스코드를 생성한다.
   이미지 플레이스홀더는 광고 간격 조절 장치 역할.
   콘텐츠 > 광고 비율 항상 유지 (애드센스 정책 준수).
 
+  ★ [글박스 삽입 절대 규칙]
+  글 전체에 tip-box, warn-box, insight-box, data-box 중 최소 3~4개를 반드시 삽입하세요.
+  H2 섹션이 2개 지나갈 때마다 무조건 1개의 글박스를 삽입하는 '2:1 배치 전략'을 따르세요.
+  "내용상 필요 없다"고 판단하여 생략하는 것을 절대 금지합니다. 어떻게든 관련 팁을 찾아 박스를 만드세요.
+
 
 ════════════════════════════════════════
   PART B — 입출력 & 분량
@@ -104,7 +109,7 @@ HTML 소스코드를 생성한다.
       </ul>
     </div>
     \`\`\`
-  - **결론 중복 금지**: 글 마지막에 'Final Thoughts', 'Conclusion', '마치며'와 같은 별도의 H2 섹션을 만들지 마세요. 마지막 요약은 오직 \`closing-box\` 하나로 종결합니다.
+  - **결론 중복 금지**: 글 마지막에 'Final Thoughts', 'Conclusion', '마치며', '글을 마치며'와 같은 별도의 H2 섹션을 절대 만들지 마세요. 마지막 요약은 오직 \`closing-box\` 하나로 종결합니다. 이 규칙은 절대적입니다.
 
   → HTML 주석(<!-- -->) 추가 삽입 금지.
 
@@ -516,18 +521,20 @@ FAQ Schema:
   PART J — E-E-A-T 품질 엔진
 ════════════════════════════════════════
 
-[Experience — 경험] ★ 최우선
+[Experience — 경험] ★ 최우선 (AI 탐지 완벽 회피)
 
-글 전체가 하나의 경험 서사를 관통한다. 신호(구체적 수치, 실패/후회담, 감각적 디테일, 시간 흐름)를 자연스럽게 등장시킬 것.
+1. **인간적 결함(Human Flaws)**: 저자의 과거 실수담, 후회, 당황했던 순간을 1인칭 시점으로 1건 이상 포함할 것 (예: "저도 처음엔 이거 몰라서 큰 돈 날렸었거든요..", "솔직히 고백하자면..").
+2. **현장 용어(Insider Slang)**: 사전적 의미가 아닌, 업계 현장에서만 쓰는 생생한 표현과 비유를 섞을 것 (예: "써멀이 과자처럼 구워진 상태", "전선이 스파게티처럼 꼬인").
+3. **독백적 문법**: 정보를 가르치려 들지 말고, 혼잣말이나 독자에게 툭 던지는 질문("여러분은 어떠신가요?", "이게 말이 되나요?")을 문단 끝에 배치하여 완벽하게 리듬감을 깰 것.
 
-[Expertise — 전문성]
-  비교 테이블 시각화, 원리 설명, 업계 용어 괄호 풀이, 오해 바로잡기 포함.
 
-[Authoritativeness — 권위]
-  공식 기관 데이터를 문장 안에 녹임. 공식 버튼 1~2개 배치.
+════════════════════════════════════════
+  PART P — HTML 구조적 지문 지우기 (Anti-AI Signature)
+════════════════════════════════════════
 
-[Trustworthiness — 신뢰]
-  면책조항 필수. 단점/한계 노출. Schema JSON-LD 강화.
+1. **인간적 주석 삽입**: HTML 코드 중간에 사람이 남긴 듯한 주석을 3~4개 랜덤하게 삽입하라. (예: <!-- Smileseon's update: content added for clarity -->, <!-- Check SEO performance later -->).
+2. **레이아웃 리듬 파괴**: 매 섹션마다 H2 → P → 박스 순서로 작성하지 마라. 어떤 섹션은 박스를 가장 먼저 배치하고, 어떤 섹션은 P → H3 → P 순으로 가거나 박스를 2개 연속 배치하기도 하는 등 불규칙성을 부여하라.
+3. **시맨틱 태그 다양성**: 모든 컨테이너를 div로만 채우지 말고, aside, blockquote, section, figure 등을 적극적으로 섞어서 작성하라. 기계적인 일관성이 보이는 순간 실패다.
 
 
 ════════════════════════════════════════
@@ -640,14 +647,17 @@ const STYLE = `
   }
   .toc-box h3 { margin-top: 0; font-size: 19px; margin-bottom: 20px; }
   .toc-box ul { list-style: none; padding: 0; margin: 0; }
-  .toc-box li { margin-bottom: 12px; position: relative; padding-left: 18px; }
-  .toc-box li::before { content: '▶'; position: absolute; left: 0; color: #3b82f6; font-size: 12px; top: 2px; }
+  .toc-box li { margin-bottom: 15px; position: relative; padding-left: 25px; }
+  .toc-box li::before { content: '\25B6'; position: absolute; left: 0; color: #3b82f6; font-size: 10px; top: 4px; }
   .toc-box a { color: #475569; text-decoration: none; font-weight: 500; }
 
-  /* 팁 & 경고 상자 */
-  .tip-box, .warn-box { border-radius: 16px; padding: 24px 28px; margin: 40px 0; position: relative; }
-  .tip-box { background: #f0fdf4; border: 1px solid #dcfce7; color: #166534; }
-  .warn-box { background: #fff1f2; border: 1px solid #ffe4e6; color: #991b1b; }
+  /* 팁, 경고, 인사이트, 데이터 상자 통합 디자인 */
+  .tip-box, .warn-box, .insight-box, .data-box { border-radius: 16px; padding: 26px 30px; margin: 40px 0; position: relative; border: 1px solid transparent; }
+  
+  .tip-box { background: #f0fdf4; border-color: #dcfce7; color: #166534; }
+  .warn-box { background: #fff1f2; border-color: #ffe4e6; color: #991b1b; }
+  .insight-box { background: #fdf2f8; border-color: #fce7f3; color: #9d174d; }
+  .data-box { background: #eff6ff; border-color: #dbeafe; color: #1e40af; }
 
   /* 테이블 */
   .vue-premium table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 45px 0; border-radius: 16px; overflow: hidden; border: 1px solid #f1f5f9; }
@@ -668,8 +678,11 @@ const STYLE = `
     box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
   }
 
-  .closing-box { background: #1e293b; color: #f8fafc; padding: 40px; border-radius: 24px; margin: 80px 0; text-align: center; }
-  .closing-box p { font-style: italic; font-size: 19px; }
+  /* 마무리 상자 (라이트 파스텔 오렌지 테마) */
+  .closing-box { background: #fff7ed; border: 2px dashed #fed7aa; color: #9a3412; padding: 45px; border-radius: 24px; margin: 80px 0; text-align: center; }
+  .closing-box h2 { justify-content: center; margin-top: 0; color: #ea580c; border: none; }
+  .closing-box h2::before { display: none; }
+  .closing-box p { font-style: italic; font-size: 19px; color: #c2410c; }
   .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 100px 0 40px; color: #64748b; font-size: 13.5px; line-height: 1.6; text-align: justify; word-break: keep-all; }
   .disclaimer-box strong { color: #475569; display: block; margin-bottom: 8px; }
 </style>
@@ -725,6 +738,8 @@ async function searchSerper(query, lang) {
 async function genImg(prompt, model, idx) {
     try {
         const revised = await callAI(model, `Provide a high-quality stable diffusion prompt (16:9) based on: ${prompt}. Output only prompt.`);
+        const cleanPrompt = revised.trim().replace(/^"|"$/g, '');
+        report(`🎨 [이미지 설계]: ${cleanPrompt.substring(0, 100)}${cleanPrompt.length > 100 ? '...' : ''}`);
 
         let imageUrl = '';
         const kieKey = process.env.KIE_API_KEY;
@@ -1004,11 +1019,9 @@ ${langTag}`;
 
     finalHtml = finalHtml.replace(/\[\[IMG_\d+\]\]/gi, '').trim();
 
-    const disclaimer = lang === 'ko'
-        ? `<div class='disclaimer-box'><strong>⚖️ 면책 조항 (Disclaimer)</strong>본 포스팅은 개인적인 경험과 공개된 정보를 바탕으로 작성되었으며, 전문적인 법률, 금융 또는 기술적 자문을 대신할 수 없습니다. 정확한 정보 확인을 위해 반드시 해당 분야의 전문가나 공식 출처를 확인하시기 바랍니다. 본 콘텐츠의 이용으로 인해 발생하는 결과에 대해 필자는 책임을 지지 않습니다.</div>`
-        : `<div class='disclaimer-box'><strong>⚖️ Disclaimer</strong>This post is based on personal experience and publicly available information and does not constitute professional legal, financial, or technical advice. Please verify accurate information with a professional in the field or official sources. The owner of this content is not responsible for any outcomes resulting from the use of this information.</div>`;
-
-    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: STYLE + finalHtml + disclaimer + '</div>', published: pTime.toISOString() } });
+    // [CRITICAL FIX]: Remove redundant hardcoded disclaimer here because AI will generate it based on Master Guideline.
+    // This prevents double disclaimer issue.
+    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: STYLE + finalHtml + '</div>', published: pTime.toISOString() } });
     report(`🖋️ [포스팅 성공]: "${finalTitle}"`, 'success');
     report(`🔗 [URL]: ${res.data.url}`);
     return { title: finalTitle, url: res.data.url };

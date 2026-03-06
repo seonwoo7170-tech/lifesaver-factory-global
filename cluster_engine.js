@@ -648,7 +648,7 @@ const STYLE = `
   .toc-box h3 { margin-top: 0; font-size: 19px; margin-bottom: 20px; }
   .toc-box ul { list-style: none; padding: 0; margin: 0; }
   .toc-box li { margin-bottom: 15px; position: relative; padding-left: 25px; }
-  .toc-box li::before { content: '\25B6'; position: absolute; left: 0; color: #3b82f6; font-size: 10px; top: 4px; }
+  .toc-box li::before { content: '\u25B6'; position: absolute; left: 0; color: #3b82f6; font-size: 10px; top: 4px; }
   .toc-box a { color: #475569; text-decoration: none; font-weight: 500; }
 
   /* 팁, 경고, 인사이트, 데이터 상자 통합 디자인 */

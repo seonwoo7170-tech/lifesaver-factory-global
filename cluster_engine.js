@@ -347,8 +347,6 @@ async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ 
         model: 'gemini-2.0-flash',
         systemInstruction: 'Act as a top-tier SEO expert and professional blogger writing high-quality content.'
     });

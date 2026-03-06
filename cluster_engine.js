@@ -843,7 +843,7 @@ async function genThumbnail(meta, model) {
     }
 }
 
-async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
+async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total, persona = '') {
     const { text: searchData } = await searchSerper(target, lang);
     let pillarContext = '';
 
@@ -857,7 +857,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         pillarContext = `\n${contextPrompt}\n${links}`;
     }
 
-    const personaTag = config.selected_persona ? `\n[SPECIFIC_PERSONA]: ${config.selected_persona}` : '';
+    const personaTag = persona ? `\n[SPECIFIC_PERSONA]: ${persona}` : '';
     const langTag = `\n[TARGET_LANGUAGE]: ${lang === 'ko' ? 'Korean' : 'English'}${personaTag}`;
     report(`🔥 [${idx}/${total}] 집필 시작: ${target}`);
     report(`💻 [AI 프롬프트 생성 중]: 리서치 데이터 ${searchData.length}자 포함...`);
@@ -1081,18 +1081,29 @@ async function run() {
         report(`🎯 최종 전략 주제 확정: [ ${baseKeyword} ]`);
     } else {
         report(`📌 고정 키워드 사용: ${baseKeyword}`);
+        config.selected_persona = ''; // 고정 키워드 시에는 페르소나 명시 안 함(기본값 사용)
     }
 
-    // 1단계: 세부 주제 추출
+    // 1단계: 세부 주제 추출 (강력한 SEO 전략 적용)
     const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
-    const clusterPrompt = `You are a 10-year veteran blog Google SEO expert.
+    const clusterPrompt = `You are a 10-year veteran blog Google SEO expert specializing in Topic Clusters.
     Today's date is ${new Date().toISOString().split('T')[0]}. 
-    Create high-performing long-tail keywords BASED STRICTLY on the niche of '${baseKeyword}'. 
-    Craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in ${langName}.
+    Niche: '${baseKeyword}'
     
-    ★ CRITICAL: All information, trends, and year-based tags MUST reflect the context of NOW (${new Date().getFullYear()}). Do NOT use outdated years like 2024.
+    ★ MISSION: Create 5 high-performing blog post titles (1 Pillar + 4 Spokes) in ${langName} that dominate Google Search.
     
-    Output ONLY a JSON array of 5 titles.`;
+    [SEO STRATEGIES TO APPLY]:
+    1. **Recency (2026)**: Always include '2026' in titles to trigger Google's freshness algorithm.
+    2. **Listicles (Numbers)**: Use specific numbers like "Top 7", "5 Best", "10 Ways" for Spoke posts to increase CTR.
+    3. **Powerful Benefits**: Don't just list topics; mention a specific benefit (e.g., "Keep Your PC Like New", "Save 10 Hours a Week").
+    4. **Long-tail & Problem-Solving**: Address specific pain points (e.g., "Fixing Slow Boot", "Stopping Lag") rather than broad terms.
+    
+    [REQUIREMENTS]:
+    - Pillar Title: Broad enough to be a 'Ultimate Guide' but with a powerful benefit.
+    - Spoke Titles: Highly specific, using numbers and target-specific solutions.
+    - All titles MUST reflect the current context of ${new Date().getFullYear()}.
+    
+    Output ONLY a JSON array of 5 titles string.`;
     const clusterRes = await callAI(model, clusterPrompt);
     let list = JSON.parse(clean(clusterRes, 'arr'));
 
@@ -1110,14 +1121,14 @@ async function run() {
     // 2단계: Spoke(서브 글) 먼저 작성 - 실제 URL 확보
     for (let i = 0; i < spokes.length; i++) {
         const pTime = new Date(); pTime.setMinutes(pTime.getMinutes() + (i + 1) * 2);
-        const sRes = await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [], i + 1, 5);
+        const sRes = await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [], i + 1, 5, config.selected_persona);
         if (sRes) subLinks.push(sRes);
         await new Promise(r => setTimeout(r, 5000));
     }
 
     // 3단계: Pillar(메인 글) 마지막 작성 - 모든 서브글 링크 실제 주소로 연결
     report(`🎯 최종 메인 허브(Pillar) 글 작성: ${pillarTitle}`);
-    await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, new Date(), subLinks, 5, 5);
+    await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, new Date(), subLinks, 5, 5, config.selected_persona);
     report('🌈 프리미엄 클러스터 전략 완료!', 'success');
 }
 run().catch(e => { report(e.message, 'error'); process.exit(1); });

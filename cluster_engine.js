@@ -300,14 +300,15 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     // 외부에 붙은 언어 접두사 강제 제거
     finalTitle = finalTitle.replace(/^(ko|en|kr|us):\s*/i, '').trim();
 
-    // [본문 청소: 문자 그대로의 \\n 파편 제거 및 HTML 최적화]
+    // [본문 청소: 제목 중복 및 파편 제거 및 HTML 최적화]
     finalHtml = finalHtml.replace(/\\\\n/g, ' ').replace(/\\n/g, ' ');
-    finalHtml = finalHtml.replace(/\\r?\\n/g, '<br>').replace(/(?:<br>\s*){3,}/g, '<br><br>').trim();
+    finalHtml = finalHtml.replace(/\\r?\\n/g, '<br>').replace(/(?:<br>\\s*){3,}/g, '<br><br>').trim();
     
-    // 추출된 제목이 본문 첫 부분에 생텍스트로 남아 있다면 제거
-    const escapedT = finalTitle.replace(/[.*+?^${}()|[\\\\s\\]\\\\/]/g, '\\\\$&');
-    const leadReg = new RegExp('^' + escapedT + '[\\\\s\\\\*#]*', 'i');
-    finalHtml = finalHtml.replace(leadReg, '').trim();
+    // 제목이 본문 첫 부분에 생텍스트로 시작할 경우 제거 (중복 방지)
+    if (finalHtml.startsWith(finalTitle)) {
+        finalHtml = finalHtml.substring(finalTitle.length).trim();
+    }
+    finalHtml = finalHtml.replace(/^[\\s\\*#=]+/, '').trim();
 
     // [플레이스홀더 보정]
     if (m0 && !finalHtml.includes('[[IMG_0]]')) {

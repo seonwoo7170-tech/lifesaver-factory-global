@@ -707,13 +707,88 @@ async function searchSerper(query, lang) {
 async function genImg(prompt, model, idx) {
     try {
         const revised = await callAI(model, `Provide a high-quality stable diffusion prompt (16:9) based on: ${prompt}. Output only prompt.`);
-        const url = `https://pollinations.ai/p/${encodeURIComponent(revised)}?width=1080&height=720&seed=${Math.floor(Math.random() * 99999)}&nologo=true&enhance=true`;
-        const res = await axios.get(url, { responseType: 'arraybuffer' });
+
+        let imageUrl = '';
+        const kieKey = process.env.KIE_API_KEY;
+
+        // 1. Kie.ai (Premium Image Generation)
+        if (kieKey && kieKey.length > 5) {
+            try {
+                report(`   ㄴ [Kie.ai] z-image 호출 중 (이미지 생성)...`);
+                const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
+                    model: 'z-image',
+                    input: { prompt: revised + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' }
+                }, { headers: { Authorization: 'Bearer ' + kieKey } });
+
+                const tid = cr.data.taskId || cr.data.data?.taskId;
+                if (tid) {
+                    for (let a = 0; a < 15; a++) {
+                        await new Promise(r => setTimeout(r, 6000));
+                        const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
+                        const state = pr.data.state || pr.data.data?.state;
+                        if (state === 'success') {
+                            const resData = pr.data.resultJson || pr.data.data?.resultJson;
+                            const resJson = typeof resData === 'string' ? JSON.parse(resData) : resData;
+                            imageUrl = resJson.resultUrls[0];
+                            break;
+                        }
+                        if (state === 'fail' || state === 'failed') break;
+                    }
+                }
+            } catch (e) { report(`   ㄴ [Kie.ai] 실패: 다음 엔진으로 전환합니다.`, 'warning'); }
+        }
+
+        // 2. Pollinations.ai (FLUX Fallback)
+        if (!imageUrl) {
+            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(revised)}?width=1080&height=720&seed=${Math.floor(Math.random() * 99999)}&nologo=true&enhance=true`;
+        }
+
+        // 3. ImgBB Upload (영구 보관)
+        const res = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } });
+        if (res.status !== 200) throw new Error("Image download failed");
+
         const form = new FormData();
         form.append('image', Buffer.from(res.data).toString('base64'));
         const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
         return ir.data.data.url;
-    } catch (e) { return 'https://via.placeholder.com/1080x720?text=Image+Failed'; }
+    } catch (e) {
+        try {
+            // Level 2 Fallback: High quality stock photo
+            const seed = prompt.replace(/[^a-zA-Z]/g, '').substring(0, 10) + idx;
+            const fallbackUrl = `https://picsum.photos/seed/${seed}/1080/720`;
+            const fbRes = await axios.get(fallbackUrl, { responseType: 'arraybuffer', timeout: 5000 });
+            const form = new FormData();
+            form.append('image', Buffer.from(fbRes.data).toString('base64'));
+            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
+            return ir.data.data.url;
+        } catch (fallbackErr) {
+            // Level 3 Fallback: Canvas Error Image
+            try {
+                const cv = createCanvas(1080, 720);
+                const ctx = cv.getContext('2d');
+                const h = Math.floor(Math.random() * 360);
+                const grad = ctx.createLinearGradient(0, 0, 1080, 720);
+                grad.addColorStop(0, `hsl(${h}, 70%, 40%)`);
+                grad.addColorStop(1, `hsl(${h + 60}, 70%, 20%)`);
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, 1080, 720);
+
+                ctx.fillStyle = 'rgba(255,255,255,0.05)';
+                for (let i = 0; i < 8; i++) {
+                    ctx.beginPath();
+                    ctx.arc(Math.random() * 1080, Math.random() * 720, Math.random() * 300 + 100, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
+                ctx.font = 'bold 45px sans-serif';
+                ctx.fillText('Dynamic Display Image', 540, 360);
+                const form = new FormData();
+                form.append('image', cv.toBuffer('image/jpeg').toString('base64'));
+                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
+                return ir.data.data.url;
+            } catch (e) { return ''; }
+        }
+    }
 }
 
 async function genThumbnail(meta, model) {
@@ -725,12 +800,29 @@ async function genThumbnail(meta, model) {
         ctx.drawImage(bg, 0, 0, 1200, 630);
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, 1200, 630);
         ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-        ctx.font = 'bold 60px sans-serif'; ctx.fillText(meta.mainTitle, 600, 315);
+        ctx.font = 'bold 55px sans-serif';
+
+        const words = meta.mainTitle.split(' ');
+        let line = ''; let y = 280;
+        for (let n = 0; n < words.length; n++) {
+            let testLine = line + words[n] + ' ';
+            if (ctx.measureText(testLine).width > 1000 && n > 0) {
+                ctx.fillText(line.trim(), 600, y);
+                line = words[n] + ' ';
+                y += 65;
+            } else {
+                line = testLine;
+            }
+        }
+        ctx.fillText(line.trim(), 600, y);
+
         const form = new FormData();
         form.append('image', cv.toBuffer('image/jpeg').toString('base64'));
         const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
         return ir.data.data.url;
-    } catch (e) { return ''; }
+    } catch (e) {
+        return await genImg(meta.mainTitle, model, 0);
+    }
 }
 
 async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks = [], idx, total) {
@@ -747,52 +839,64 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     // MISSION 분량 확보를 위한 강력한 지침 추가
     const m1Prompt = MASTER_GUIDELINE + `
-[MISSION: PART 1] 
-1. 최상단에 IMG_0~IMG_3 메타데이터를 반드시 아래와 정확히 똑같은 형식으로 텍스트로만 작성하세요 (JSON 블록 사용 금지, 다른 키값 추가 금지):
-IMG_0: { mainTitle: "썸네일용 매력적인 짧은 제목", bgPrompt: "썸네일 배경 이미지 생성용 프롬프트" }
-IMG_1: { prompt: "본문 첫번째 이미지 생성용 상세 영어 프롬프트" }
-IMG_2: { prompt: "본문 두번째 이미지 생성용 상세 영어 프롬프트" }
-IMG_3: { prompt: "본문 세번째 이미지 생성용 상세 영어 프롬프트" }
+[MISSION: FULL POST GENERATION] 
+정확히 아래 포맷에 맞춰서 한 번에 모든 글을 작성해야 합니다. 절대 포맷을 어기지 마세요.
+전체 글 분량은 6,000자~8,000자 이상 확보하도록 상세하게 풀어 쓰세요. 특히, 짧게 넘어가지 말고 본문의 섹션별 설명을 매우 길게 늘려야 합니다.
 
-2. 그 아래에 <h1>제목, TOC(목차), 그리고 본문(H2) 1번 섹션부터 4번 섹션까지만 작성하세요. 4번 섹션 작성이 끝나면 출력을 멈추세요.
-3. 본문 내에 이미지 삽입부에는 절대로 <img src=...> 태그를 쓰지 말고, 오직 [[IMG_1]], [[IMG_2]], [[IMG_3]] 과 같은 치환자만 적으세요.
-(최소 2,500자 이상 확보 목표)
+[META_DATA_START]
+{
+  "IMG_0": { "mainTitle": "썸네일용 매력적인 짧은 제목", "bgPrompt": "썸네일 배경 이미지 묘사 영문 프롬프트" },
+  "IMG_1": { "prompt": "본문 첫번째 이미지 묘사 영문 프롬프트" },
+  "IMG_2": { "prompt": "본문 두번째 이미지 묘사 영문 프롬프트" },
+  "IMG_3": { "prompt": "본문 세번째 이미지 묘사 영문 프롬프트" }
+}
+[META_DATA_END]
+
+[CONTENT_START]
+<h1>원하는 블로그 본문 제목 1개 적기</h1>
+<div class='toc-box'>목차...</div>
+<h2>첫번째 섹션</h2>
+<p>본문 내용...</p>
+[[IMG_1]]
+<h2>두번째 섹션</h2>
+<p>본문 내용...</p>
+[[IMG_2]]
+... 끝까지 (8~10개의 FAQ, 마무리 박스 포함)
+[CONTENT_END]
+
+★ 경고: 본문 내에 이미지 삽입부에는 절대로 <img src=...> 태그를 쓰지 말고, 오직 [[IMG_1]], [[IMG_2]], [[IMG_3]] 과 같은 치환자만 적으세요.
 ${target}
 ${searchData}
 ${pillarContext}
 ${langTag}`;
 
     const m1 = await callAI(model, m1Prompt);
-    const cleanM1 = clean(m1, 'text');
 
-    const m2Prompt = MASTER_GUIDELINE + `
-[이전에 작성된 PART 1 내용 전문(참고용, 중복 작성 금지)]
-${cleanM1.slice(-2000)}
+    let finalHtml = '';
+    let m0 = null;
+    const imgMetas = {};
 
-[MISSION: PART 2] 
-위의 PART 1 코드 마지막 문장에 이어지도록, 본문(H2) 5번 섹션부터 남은 섹션 전체와 8~10개의 FAQ, 마무리 박스(CTA)를 역동적으로 이어서 작성하세요. 
-★ 경고: PART 2에서는 절대 제목(h1), 목차(TOC), 그리고 IMG 메타데이터를 다시 출력하지 마세요. PART 1과 문맥이 중복되지 않고 매끄럽게 연결되는 본문 텍스트만 출력해야 합니다.
-(전체 글 분량 4,000자 이상 엄수)
-${pillarContext}
-${langTag}`;
+    try {
+        const metaMatch = m1.match(/\[META_DATA_START\]([\s\S]*?)\[META_DATA_END\]/i);
+        if (metaMatch) {
+            const cleanJsonStr = metaMatch[1].replace(/```json/i, '').replace(/```/i, '').trim();
+            const metaJson = JSON.parse(cleanJsonStr);
+            if (metaJson.IMG_0) m0 = metaJson.IMG_0;
+            if (metaJson.IMG_1) imgMetas[1] = metaJson.IMG_1;
+            if (metaJson.IMG_2) imgMetas[2] = metaJson.IMG_2;
+            if (metaJson.IMG_3) imgMetas[3] = metaJson.IMG_3;
+        }
+    } catch (e) { console.log('⚠️ 메타 JSON 파싱 실패, 강제 복구 진행'); }
 
-    const m2 = await callAI(model, m2Prompt);
-    let cleanM2 = clean(m2, 'text').replace(/<h1.*?>.*?<\/h1>/gi, '').replace(/<div class='toc-box'>[\s\S]*?<\/div>/gi, '').replace(/IMG_\d+:\s*\{[\s\S]*?\}/gi, '');
+    if (!m0) m0 = { mainTitle: target, bgPrompt: 'Abstract premium background' };
 
-    let finalHtml = cleanM1 + '\n' + cleanM2;
-
-    const metaRegex = /IMG_(\d+):\s*\{([\s\S]*?)\}/gi;
-    let m, m0 = null; const imgMetas = {};
-    while ((m = metaRegex.exec(finalHtml)) !== null) {
-        const i = m[1], raw = m[2];
-        if (i === '0') m0 = { mainTitle: (raw.match(/mainTitle:\s*['"](.*?)['"]/i) || [])[1] || target, bgPrompt: (raw.match(/bgPrompt:\s*['"](.*?)['"]/i) || [])[1] || target };
-        else imgMetas[i] = { prompt: (raw.match(/prompt:\s*['"](.*?)['"]/i) || [])[1] || target };
+    const contentMatch = m1.match(/\[CONTENT_START\]([\s\S]*?)\[CONTENT_END\]/i);
+    if (contentMatch) {
+        finalHtml = contentMatch[1].trim();
+    } else {
+        const metaEndIdx = m1.indexOf('[META_DATA_END]');
+        finalHtml = metaEndIdx !== -1 ? m1.substring(metaEndIdx + 15).trim() : clean(m1, 'text');
     }
-
-    // 중괄호 포함한 JSON 텍스트 블록 전체 삭제를 위해 강력한 정규식 처리
-    finalHtml = finalHtml.replace(/\{[\s\S]*?"IMG_0"[\s\S]*?\}/g, '');
-    finalHtml = finalHtml.replace(metaRegex, '');
-    finalHtml = finalHtml.replace(/IMG_\d+:[\s\S]*?\}/gi, '').trim();
 
     let finalTitle = target;
     const h1Match = finalHtml.match(/<h1.*?>([\s\S]*?)<\/h1>/i);

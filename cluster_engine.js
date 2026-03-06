@@ -717,9 +717,10 @@ async function callAI(model, prompt) {
         const res = await model.generateContent(prompt);
         return res.response.text();
     } catch (e) {
-        if (e.message.includes('429')) {
-            report('⏳ Rate limit hit, retrying in 30s...');
-            await new Promise(r => setTimeout(r, 30000));
+        const msg = e.message.toLowerCase();
+        if (msg.includes('429') || msg.includes('quota') || msg.includes('exhausted')) {
+            report('⏳ [API 할당량 초과] 60초 후 다시 시도합니다...', 'warning');
+            await new Promise(r => setTimeout(r, 60000));
             return callAI(model, prompt);
         }
         throw e;
@@ -1151,7 +1152,7 @@ async function run() {
         const pTime = getKST(); pTime.setMinutes(pTime.getMinutes() + (i + 1) * 2);
         const sRes = await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [], i + 1, 5, config.selected_persona);
         if (sRes) subLinks.push(sRes);
-        await new Promise(r => setTimeout(r, 5000));
+        await new Promise(r => setTimeout(r, 30000)); // 할당량 보호: 포스팅 간격을 30초로 확대
     }
 
     // 3단계: Pillar(메인 글) 마지막 작성 - 모든 서브글 링크 실제 주소로 연결

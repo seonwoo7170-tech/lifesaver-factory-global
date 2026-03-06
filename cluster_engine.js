@@ -827,11 +827,20 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     if (extraLinks.length > 0) {
         const links = extraLinks.map(l => `- Title: ${l.title}, URL: ${l.url}`).join('\n');
-        pillarContext = `\n[SUB_POST_LINKS] (메인 허브 전용): 이 글은 메인 허브(Pillar) 글입니다. 아래 제공된 서브 주제(Spoke) 포스팅들을 각각 하나씩 새로운 H2 섹션으로 요약하여 작성하고, 각 섹션의 끝에 해당 포스팅으로 연결되는 <a href='URL' class='cluster-btn'>보러가기 →</a> 버튼을 하나씩 삽입하세요. 모든 서브글을 이 글 안에 요약해서 녹여내야 합니다.\n${links}`;
+        const isKo = lang === 'ko';
+        const btnText = isKo ? "보러가기 →" : "Read More →";
+        const contextPrompt = isKo
+            ? `[SUB_POST_LINKS] (메인 허브 전용): 이 글은 메인 허브(Pillar) 글입니다. 아래 제공된 서브 주제(Spoke) 포스팅들을 글의 **초반부(섹션 1~4)**에 각각 하나의 H2 섹션으로 할당하여 요약 작성하세요. 각 섹션의 끝에는 반드시 해당 포스팅으로 연결되는 <a href='URL' class='cluster-btn'>${btnText}</a> 버튼을 삽입해야 합니다. (모든 서브글 포함 필수)`
+            : `[SUB_POST_LINKS] (Main Hub Post): This is a Pillar post. Summarize the following Spoke posts into H2 sections, placing them in the **early part of the post (Sections 1-4)**. At the end of each summary section, insert a button: <a href='URL' class='cluster-btn'>${btnText}</a>. (All sub-posts must be included)`;
+        pillarContext = `\n${contextPrompt}\n${links}`;
     }
 
     const langTag = `\n[TARGET_LANGUAGE]: ${lang === 'ko' ? 'Korean' : 'English'}`;
     report(`🔥 [${idx}/${total}] 집필 시작: ${target}`);
+
+    const h1Instruction = lang === 'ko'
+        ? "<h1>(10년차 SEO 전문가의 구글 상단 노출을 위한 롱테일 키워드 제목)</h1>"
+        : "<h1>(SEO Optimized Long-tail Keyword Title for Google Ranking)</h1>";
 
     // MISSION 분량 확보를 위한 강력한 지침 추가
     const m1Prompt = MASTER_GUIDELINE + `
@@ -860,7 +869,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 [META_DATA_END]
 
 [CONTENT_START]
-<h1>원하는 블로그 본문 제목 1개 적기</h1>
+${h1Instruction}
 <div class='toc-box'>목차...</div>
 <h2>첫번째 섹션</h2>
 <p>본문 내용...</p>
@@ -988,7 +997,11 @@ async function run() {
     if (baseKeyword === '자동생성') baseKeyword = (config.clusters || ['AI'])[0];
 
     // 1단계: 세부 주제 추출
-    const clusterPrompt = `Generating a cohesive blog series for '${baseKeyword}'. Output only a JSON array of 5 titles (1 Pillar, 4 Spoke). Example: ["Comprehensive Guide to X", "Secret Tip 1 of X", ...]`;
+    const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
+    const clusterPrompt = `You are a 10-year veteran blog Google SEO expert.
+    Create long-tail keywords based on '${baseKeyword}' and craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in ${langName}.
+    
+    Output ONLY a JSON array of 5 titles.`;
     const clusterRes = await callAI(model, clusterPrompt);
     const list = JSON.parse(clean(clusterRes, 'arr'));
 

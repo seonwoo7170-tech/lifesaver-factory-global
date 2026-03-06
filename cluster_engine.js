@@ -373,3 +373,39 @@ async function run() {
         baseKeyword = config.pillar_topic.trim();
     } else {
         const list = (config.clusters || []).length > 0 ? config.clusters : ['AI Technology'];
+        baseKeyword = list[Math.floor(Math.random() * list.length)];
+    }
+    report('🎯 이번 회차 타겟 키워드 선정: ' + baseKeyword);
+    const entropy = new Date().getTime();
+    const langName = config.blog_lang === 'en' ? 'English' : 'Korean';
+    const clusterPrompt = `[ID: \\${entropy}]\\\\n당신은 SEO 전략가이자 고도로 숙련된 카피라이터다. '${baseKeyword}'를 메인 키워드로 하여, 구글 상단 노출을 위한 '토픽 클러스터(Topic Cluster)'를 구성하라.\\\\n\\\\n[조건]\\\\n1. 메인 필러(Pillar) 주제 1개와 이를 뒷받침하는 전문적인 서브 주제(Spoke) 4개를 선정해라.\\\\n2. 모든 주제는 독자의 클릭을 유도하는 '파격적이고 매력적인' 제목 형태여야 한다.\\\\n3. ${langName}로 작성해라. (절대 앞에 ko:, en: 같은 접두사를 붙이지 마라)\\\\n4. JSON 배열 형식으로만 출력해라. 예: [\"Pillar Title\", \"Spoke 1\", \"Spoke 2\", \"Spoke 3\", \"Spoke 4\"]`;
+
+    report('🔎 세부 전문 주제(Spoke) 4종 추출 중...');
+    const clusterRes = await callAI(model, clusterPrompt);
+    const clusterList = JSON.parse(clean(clusterRes, 'arr'));
+
+    if (!Array.isArray(clusterList) || clusterList.length < 5) {
+        report('⚠️ 클러스터 주제 생성 실패하여 단일 포스팅 모드로 전환합니다.', 'warning');
+        await writeAndPost(model, baseKeyword, config.blog_lang, blogger, config.blog_id, new Date(), [], 1, 1, '', globalArchives);
+    } else {
+        const pillarTitle = clusterList[0];
+        const spokes = clusterList.slice(1);
+        report('🚀 1개 키워드에 대한 풀 클러스터(메인1+서브4) 작업을 시작합니다.');
+        report('🎯 메인 주제 선정: ' + pillarTitle);
+
+        const pillarPost = await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, new Date(), [], 1, 5, baseKeyword, globalArchives);
+
+        for(let i=0; i<spokes.length; i++) {
+            const pTime = new Date();
+            pTime.setMinutes(pTime.getMinutes() + (i + 1) * 2);
+            await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [pillarPost], i+2, 5, baseKeyword, globalArchives);
+        }
+    }
+    await uploadReport();
+}
+
+run().catch(e => {
+    console.error(e);
+    report('🚨 [CRITICAL ERROR]: ' + e.message, 'error');
+    uploadReport().finally(() => process.exit(1));
+});

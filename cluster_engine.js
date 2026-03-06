@@ -689,11 +689,16 @@ const STYLE = `
 <div class='vue-premium'>
 `;
 
+function getKST() {
+    const now = new Date();
+    const kstOffset = 9 * 60 * 60 * 1000;
+    return new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + kstOffset);
+}
+
 function report(msg, type = 'info') {
     const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'error' ? '🚨' : 'ℹ️';
-    const logMsg = `[${new Date().toLocaleTimeString()}] ${icon} ${msg}`;
+    const logMsg = `[${getKST().toLocaleTimeString('ko-KR')}] ${icon} ${msg}`;
     console.log(logMsg);
-    // 향후 외부 로그 저장 로직 필요 시 여기에 추가
 }
 
 function clean(raw, mode = 'text') {
@@ -863,12 +868,20 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     let pillarContext = '';
 
     if (extraLinks.length > 0) {
-        const links = extraLinks.map(l => `- Title: ${l.title}, URL: ${l.url}`).join('\n');
+        const links = extraLinks.map((l, idx) => `[Spoke ${idx + 1}] Title: ${l.title}, URL: ${l.url}`).join('\n');
         const isKo = lang === 'ko';
-        const btnText = isKo ? "보러가기 →" : "Read More →";
+        const btnText = isKo ? "자세히 보기 →" : "Read More →";
         const contextPrompt = isKo
-            ? `[SUB_POST_LINKS] (메인 허브 전용): 이 글은 메인 허브(Pillar) 글입니다. 아래 제공된 서브 주제(Spoke) 포스팅들을 글의 **초반부(섹션 1~4)**에 각각 하나의 H2 섹션으로 할당하여 요약 작성하세요. 각 섹션의 끝에는 반드시 해당 포스팅으로 연결되는 <a href='URL' class='cluster-btn'>${btnText}</a> 버튼을 삽입해야 합니다. (모든 서브글 포함 필수)`
-            : `[SUB_POST_LINKS] (Main Hub Post): This is a Pillar post. Summarize the following Spoke posts into H2 sections, placing them in the **early part of the post (Sections 1-4)**. At the end of each summary section, insert a button: <a href='URL' class='cluster-btn'>${btnText}</a>. (All sub-posts must be included)`;
+            ? `[INTERNAL_LINK_MISSION]: 이 포스팅은 메인 허브(Pillar) 글입니다. 
+            아래 제공된 ${extraLinks.length}개의 서브 글들을 포스팅 초반부(섹션 2~5)에 **하나도 빠짐없이 각각 별도의 독립된 H2 섹션으로** 작성하세요.
+            절대로 두 개 이상의 글을 한 섹션에 합치지 마세요.
+            각 섹션의 마지막에는 반드시 해당 글의 URL을 연결한 <a href='URL' class='cluster-btn'>${btnText}</a> 버튼을 정확히 한 개씩(총 ${extraLinks.length}개) 삽입해야 합니다.
+            이것은 블로그 지수의 핵심인 내부 링크 구조이므로 누락 시 즉시 실패로 간주합니다.`
+            : `[INTERNAL_LINK_MISSION]: This is a Pillar post. 
+            Summarize the following ${extraLinks.length} Spoke posts into **separate and independent H2 sections** for EACH link.
+            DO NOT combine multiple topics into one section.
+            At the end of EVERY summary section, you MUST insert exactly one button: <a href='URL' class='cluster-btn'>${btnText}</a>.
+            Total number of buttons must be exactly ${extraLinks.length}. This is a strict SEO requirement.`;
         pillarContext = `\n${contextPrompt}\n${links}`;
     }
 
@@ -890,7 +903,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 [필수 디자인 컴포넌트 - 반드시 본문에 포함하세요]:
 ★ 배치 전략:
     - 글이 지루해지지 않도록, H2 텍스트가 2개째 등장하는 타이밍마다 삽입하여 독자의 시선을 적절하게 환기하세요.
-    - **[Time Awareness]**: Today's date is ${new Date().toISOString().split('T')[0]}. Always write based on the latest available information as of today. If referencing years, focus on the current year and future trends.
+    - **[Time Awareness]**: Today's date is ${getKST().toISOString().split('T')[0]}. Always write based on the latest available information as of today. If referencing years, focus on the current year and future trends.
 
 (A) 인사이트 박스 → <div class='insight-box'><strong>💡 Key Insight</strong><br>핵심 포인트 내용</div> — 최소 2개
 (B) 전문가 꿀팁 → <div class='tip-box'><strong>💡 Smileseon's Pro Tip</strong><br>꿀팁 내용</div> — 최소 2개
@@ -1075,7 +1088,7 @@ async function run() {
         const pool = config.clusters || [];
 
         const selectionPrompt = `You are an elite trend analyst. 
-        Date: ${new Date().toISOString().split('T')[0]}
+        Date: ${getKST().toISOString().split('T')[0]}
         Category: ${currentCat.name}
         Persona: ${currentCat.persona}
         
@@ -1100,7 +1113,7 @@ async function run() {
     // 1단계: 세부 주제 추출 (강력한 SEO 전략 적용)
     const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
     const clusterPrompt = `You are a 10-year veteran blog Google SEO expert specializing in Topic Clusters.
-    Today's date is ${new Date().toISOString().split('T')[0]}. 
+    Today's date is ${getKST().toISOString().split('T')[0]}. 
     Niche: '${baseKeyword}'
     
     ★ MISSION: Create 5 high-performing blog post titles (1 Pillar + 4 Spokes) in ${langName} that dominate Google Search.
@@ -1133,7 +1146,7 @@ async function run() {
 
     // 2단계: Spoke(서브 글) 먼저 작성 - 실제 URL 확보
     for (let i = 0; i < spokes.length; i++) {
-        const pTime = new Date(); pTime.setMinutes(pTime.getMinutes() + (i + 1) * 2);
+        const pTime = getKST(); pTime.setMinutes(pTime.getMinutes() + (i + 1) * 2);
         const sRes = await writeAndPost(model, spokes[i], config.blog_lang, blogger, config.blog_id, pTime, [], i + 1, 5, config.selected_persona);
         if (sRes) subLinks.push(sRes);
         await new Promise(r => setTimeout(r, 5000));
@@ -1141,7 +1154,7 @@ async function run() {
 
     // 3단계: Pillar(메인 글) 마지막 작성 - 모든 서브글 링크 실제 주소로 연결
     report(`🎯 최종 메인 허브(Pillar) 글 작성: ${pillarTitle}`);
-    await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, new Date(), subLinks, 5, 5, config.selected_persona);
+    await writeAndPost(model, pillarTitle, config.blog_lang, blogger, config.blog_id, getKST(), subLinks, 5, 5, config.selected_persona);
     report('🌈 프리미엄 클러스터 전략 완료!', 'success');
 }
 run().catch(e => { report(e.message, 'error'); process.exit(1); });

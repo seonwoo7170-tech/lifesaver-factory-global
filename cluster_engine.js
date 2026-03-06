@@ -729,13 +729,13 @@ async function callAI(model, prompt) {
 async function searchSerper(query, lang) {
     try {
         report(`🔍 [실시간 리서치]: "${query}" 관련 구글 검색 데이터 수집 중...`);
-        const res = await axios.post('https://google.serper.dev/search', { q: query, gl: lang === 'ko' ? 'kr' : 'us', hl: lang }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY, 'Content-Type': 'application/json' } });
+        const res = await axios.post('https://google.serper.dev/search', { q: query, gl: lang === 'ko' ? 'kr' : 'us', hl: lang }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY, 'Content-Type': 'application/json' }, timeout: 15000 });
         const data = res.data.organic || [];
         const result = { text: data.slice(0, 5).map(o => `Title: ${o.title}\nSnippet: ${o.snippet}`).join('\n\n') };
         report(`📊 [데이터 확보]: 상위 ${data.length}개 검색 결과 분석 완료`);
         return result;
     } catch (e) {
-        report(`⚠️ [Serper 에러]: 검색 데이터를 가져오지 못했습니다. (${e.message})`, 'warning');
+        report(`⚠️ [Serper 에러]: ${e.message}`, 'warning');
         return { text: '' };
     }
 }
@@ -756,13 +756,13 @@ async function genImg(prompt, model, idx) {
                 const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
                     model: 'z-image',
                     input: { prompt: revised + ', high-end, editorial photography, 8k', aspect_ratio: '16:9' }
-                }, { headers: { Authorization: 'Bearer ' + kieKey } });
+                }, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 20000 });
 
                 const tid = cr.data.taskId || cr.data.data?.taskId;
                 if (tid) {
                     for (let a = 0; a < 15; a++) {
                         await new Promise(r => setTimeout(r, 6000));
-                        const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey } });
+                        const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 10000 });
                         const state = pr.data.state || pr.data.data?.state;
                         if (state === 'success') {
                             const resData = pr.data.resultJson || pr.data.data?.resultJson;
@@ -773,7 +773,7 @@ async function genImg(prompt, model, idx) {
                         if (state === 'fail' || state === 'failed') break;
                     }
                 }
-            } catch (e) { report(`   ㄴ [Kie.ai] 실패: 다음 엔진으로 전환합니다.`, 'warning'); }
+            } catch (e) { report(`   ㄴ [Kie.ai] 중단 (${e.message}): 다음 엔진 전환`, 'warning'); }
         }
 
         // 2. Pollinations.ai (FLUX Fallback)
@@ -907,11 +907,12 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
 (A) 인사이트 박스 → <div class='insight-box'><strong>💡 Key Insight</strong><br>핵심 포인트 내용</div> — 최소 2개
 (B) 전문가 꿀팁 → <div class='tip-box'><strong>💡 Smileseon's Pro Tip</strong><br>꿀팁 내용</div> — 최소 2개
-(C) 치명적 주의 → <div class='warn-box'><strong>🚨 Critical Warning</strong><br>주의 내용</div> — 최소 1개
-(D) 신뢰 데이터 → <div class='data-box'><strong>📊 Fact Check</strong><br>팩트 체크 내용</div> — 최소 2개
-(E) 마무리 박스 → <div class='closing-box'><h2>최종 마무리</h2><p>핵심 요약</p></div> — 글 맨 마지막에 반드시 1개
-(F) 각 섹션에 가능하면 <table> 포함 (4열x4행 이상의 비교 데이터)
-(G) FAQ 섹션에 최소 8~10개의 Q&A 포함
+(C) 면책 조항 (Disclaimer): 반드시 글의 최하단에 위치시키고 레이블을 강조하세요.
+(D) 치명적 주의 → <div class='warn-box'><strong>🚨 Critical Warning</strong><br>주의 내용</div> — 최소 1개
+(E) 신뢰 데이터 → <div class='data-box'><strong>📊 Fact Check</strong><br>팩트 체크 내용</div> — 최소 2개
+(F) 마무리 박스 → <div class='closing-box'><h2>최종 마무리</h2><p>핵심 요약</p></div> — 글 맨 마지막에 반드시 1개
+(G) 각 섹션에 가능하면 <table> 포함 (4열x4행 이상의 비교 데이터)
+(H) FAQ 섹션에 최소 8~10개의 Q&A 포함
 
 [META_DATA_START]
 {
@@ -1123,6 +1124,7 @@ async function run() {
     2. **Listicles (Numbers)**: Use specific numbers like "Top 7", "5 Best", "10 Ways" for Spoke posts to increase CTR.
     3. **Powerful Benefits**: Don't just list topics; mention a specific benefit (e.g., "Keep Your PC Like New", "Save 10 Hours a Week").
     4. **Long-tail & Problem-Solving**: Address specific pain points (e.g., "Fixing Slow Boot", "Stopping Lag") rather than broad terms.
+    5. **No Numbered Heading**: NEVER use numbers like "1.", "2." or "Step 1" in titles. Titles should be natural phrases.
     
     [REQUIREMENTS]:
     - Pillar Title: Broad enough to be a 'Ultimate Guide' but with a powerful benefit.

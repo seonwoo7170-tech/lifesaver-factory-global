@@ -857,7 +857,8 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         pillarContext = `\n${contextPrompt}\n${links}`;
     }
 
-    const langTag = `\n[TARGET_LANGUAGE]: ${lang === 'ko' ? 'Korean' : 'English'}`;
+    const personaTag = config.selected_persona ? `\n[SPECIFIC_PERSONA]: ${config.selected_persona}` : '';
+    const langTag = `\n[TARGET_LANGUAGE]: ${lang === 'ko' ? 'Korean' : 'English'}${personaTag}`;
     report(`🔥 [${idx}/${total}] 집필 시작: ${target}`);
     report(`💻 [AI 프롬프트 생성 중]: 리서치 데이터 ${searchData.length}자 포함...`);
 
@@ -1027,18 +1028,18 @@ async function run() {
 
     let baseKeyword = config.pillar_topic || 'PC Hardware';
     const categories = {
-        "1": { name: "Digital & PC Hardware", query: "latest PC hardware news components 2026" },
-        "2": { name: "AI & Future Technology", query: "artificial intelligence future tech trends 2026" },
-        "3": { name: "Cooking & Food Recipes", query: "trending food recipes gourmet cooking 2026" },
-        "4": { name: "Fashion & Beauty Style", query: "latest fashion trends beauty style 2026" },
-        "5": { name: "Health & Medical Insight", query: "health wellness medical breakthroughs 2026" },
-        "6": { name: "Global News & Issues", query: "breaking global news world issues summary 2026" },
-        "7": { name: "Finance & Stock Market", query: "finance stock market investment trends 2026" },
-        "8": { name: "Travel & World Adventure", query: "world travel destinations adventure lifestyle 2026" },
-        "9": { name: "Home Design & Interior", query: "modern home interior design furniture trends 2026" },
-        "10": { name: "Marketing & Money Biz", query: "digital marketing business passive income 2026" },
-        "11": { name: "Entertainment & Culture", query: "latest movies entertainment pop culture 2026" },
-        "12": { name: "Parenting & Education", query: "parenting tips education trends self improvement 2026" }
+        "1": { name: "PC Repair & Maintenance", query: "PC repair maintenance tips guide 2026", persona: "15년 경력의 베테랑 PC 정비사" },
+        "2": { name: "Latest Hardware & Parts", query: "latest PC components hardware news 2026", persona: "하드웨어 벤치마크 전문 리뷰어" },
+        "3": { name: "Gaming & Peripherals", query: "best gaming gear peripherals trends 2026", persona: "프로게이머 출신의 게이밍 기어 전문가" },
+        "4": { name: "AI & Future Technology", query: "future AI technology trends 2026", persona: "실리콘밸리 기술 전략가이자 미래학자" },
+        "5": { name: "Coding & Software", query: "programming software development trends 2026", persona: "풀스택 시니어 소프트웨어 엔지니어" },
+        "6": { name: "Cooking & Recipes", query: "trending food recipes cooking tips 2026", persona: "미쉐린 가이드 스타일의 요리 연구가" },
+        "7": { name: "Fashion & Beauty", query: "latest fashion beauty style trends 2026", persona: "글로벌 패션 에디터이자 스타일 디렉터" },
+        "8": { name: "Health & Medical", query: "health wellness medical insights 2026", persona: "전문 헬스 케어 어드바이저" },
+        "9": { name: "Global News & Issues", query: "global news world issue summary 2026", persona: "국제 정세 전문 시사 평론가" },
+        "10": { name: "Finance & Stock", query: "finance stock market investment trends 2026", persona: "월스트리트 출신 투자 칼럼니스트" },
+        "11": { name: "Travel & Adventure", query: "world travel destination adventure 2026", persona: "럭셔리 트래블 작가이자 탐험가" },
+        "12": { name: "Home & Interior", query: "modern home interior design furniture 2026", persona: "하이엔드 공간 디자이너" }
     };
 
     if (baseKeyword === '자동생성') {
@@ -1048,46 +1049,48 @@ async function run() {
         if (targetCats.includes("ALL")) {
             const keys = Object.keys(categories);
             selectedCatKey = keys[Math.floor(Math.random() * keys.length)];
-            report(`🌐 [ALL 모드]: 전체 카테고리 중 랜덤 선정 (\${categories[selectedCatKey].name})`);
+            report(`🌐 [ALL 모드]: 전체 카테고리 중 랜덤 선정 (${categories[selectedCatKey].name})`);
         } else {
             selectedCatKey = targetCats[Math.floor(Math.random() * targetCats.length)];
-            report(`📂 [복수 카테고리]: 선택된 목록 중 선정 (\${categories[selectedCatKey].name})`);
+            report(`📂 [복수 카테고리]: 선택된 목록 중 선정 (${categories[selectedCatKey].name})`);
         }
 
         const currentCat = categories[selectedCatKey];
-        report(`🔍 [실시간 트렌드 분석]: \${currentCat.name} 분야의 최신 이슈를 파악합니다...`);
+        report(`🔍 [실시간 트렌드 분석]: ${currentCat.name} 분야의 이슈 파악...`);
 
         const trendSource = await searchSerper(currentCat.query, config.blog_lang);
         const pool = config.clusters || [];
 
         const selectionPrompt = `You are an elite trend analyst. 
-        Today's date is \${new Date().toISOString().split('T')[0]}.
-        Category: \${currentCat.name}
+        Date: ${new Date().toISOString().split('T')[0]}
+        Category: ${currentCat.name}
+        Persona: ${currentCat.persona}
         
         [Real-time News]:
-        \${trendSource.text}
+        ${trendSource.text}
         
         [Keyword Pool]:
-        \${pool.slice(0, 50).join(', ')}
+        ${pool.slice(0, 50).join(', ')}
         
         ★ MISSION: Select the best keyword from the pool OR create a new one based on trends.
         Output only the final keyword.`;
 
         const selectionRes = await callAI(model, selectionPrompt);
         baseKeyword = selectionRes.trim().replace(/^"|"$/g, '');
-        report(`🎯 최종 전략 주제 확정: [ \${baseKeyword} ]`);
+        config.selected_persona = currentCat.persona;
+        report(`🎯 최종 전략 주제 확정: [ ${baseKeyword} ]`);
     } else {
-        report(`📌 고정 키워드 사용: \${baseKeyword}`);
+        report(`📌 고정 키워드 사용: ${baseKeyword}`);
     }
 
     // 1단계: 세부 주제 추출
     const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
     const clusterPrompt = `You are a 10-year veteran blog Google SEO expert.
-    Today's date is \${new Date().toISOString().split('T')[0]}. 
-    Create high-performing long-tail keywords BASED STRICTLY on the niche of '\${baseKeyword}'. 
-    Craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in \${langName}.
+    Today's date is ${new Date().toISOString().split('T')[0]}. 
+    Create high-performing long-tail keywords BASED STRICTLY on the niche of '${baseKeyword}'. 
+    Craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in ${langName}.
     
-    ★ CRITICAL: All information, trends, and year-based tags MUST reflect the context of NOW (\${new Date().getFullYear()}). Do NOT use outdated years like 2024.
+    ★ CRITICAL: All information, trends, and year-based tags MUST reflect the context of NOW (${new Date().getFullYear()}). Do NOT use outdated years like 2024.
     
     Output ONLY a JSON array of 5 titles.`;
     const clusterRes = await callAI(model, clusterPrompt);

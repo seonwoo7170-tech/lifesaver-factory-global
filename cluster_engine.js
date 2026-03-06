@@ -289,19 +289,20 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     // [H1 제목 추출 및 본문에서 완전히 도려내기]
     let finalTitle = target;
-    const h1Match = finalHtml.match(/<h1.*?>([\\s\\S]*?)<\\/h1>/i);
+    const h1Regex = /<h1.*?>([\s\S]*?)<\/h1>/i;
+    const h1Match = finalHtml.match(h1Regex);
     if (h1Match) {
         finalTitle = h1Match[1].replace(/<[^>]+>/g, '').trim() || target;
     }
     // 본문 내 모든 H1 추출 후 삭제 (Blogger 제목 중복 방지)
-    finalHtml = finalHtml.replace(/<h1.*?>[\\s\\S]*?<\\/h1>/gi, '').trim();
+    finalHtml = finalHtml.replace(/<h1.*?>[\s\S]*?<\/h1>/gi, '').trim();
     
     // 외부에 붙은 언어 접두사 강제 제거
-    finalTitle = finalTitle.replace(/^(ko|en|kr|us):\\s*/i, '').trim();
+    finalTitle = finalTitle.replace(/^(ko|en|kr|us):\s*/i, '').trim();
 
-    // [본문 청소: 문자 그대로의 \\\\n 파편 제거 및 HTML 최적화]
-    finalHtml = finalHtml.replace(/\\\\\\\\n/g, '\\n').replace(/\\\\n/g, ' ');
-    finalHtml = finalHtml.replace(/\\\\r?\\\\n/g, '<br>').replace(/(?:<br>\\\\s*){3,}/g, '<br><br>').trim();
+    // [본문 청소: 문자 그대로의 \\n 파편 제거 및 HTML 최적화]
+    finalHtml = finalHtml.replace(/\\\\n/g, ' ').replace(/\\n/g, ' ');
+    finalHtml = finalHtml.replace(/\\r?\\n/g, '<br>').replace(/(?:<br>\s*){3,}/g, '<br><br>').trim();
     
     // 추출된 제목이 본문 첫 부분에 생텍스트로 남아 있다면 제거
     const escapedT = finalTitle.replace(/[.*+?^${}()|[\\\\s\\]\\\\/]/g, '\\\\$&');

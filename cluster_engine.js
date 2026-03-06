@@ -92,8 +92,19 @@ HTML 소스코드를 생성한다.
   - 프롬프트 하단에 제시되는 [MISSION] 섹션의 출력 포맷(META_DATA_START 등)을 정확히 따르세요.
   
   [2] 본문 HTML 규칙:
-  - <h1> 태그 사용 금지 (플랫폼 타이틀과 중복 방지). 첫 제목은 <h2>로 시작.
+  - <h1> 태그 사용 금지 (플랫폼 타이틀과 중복 방지). 첫 제목은 <h2>.
+  - **[인라인 스타일 절대 금지]**: 태그 안에 \`style='...'\` 속성을 직접 작성하지 마세요. 모든 스타일은 클래스(\`class='...'\`)로만 제어하세요.
   - 이미지 삽입 위치: [[IMG_0]], [[IMG_1]], [[IMG_2]], [[IMG_3]] 치환자 사용.
+  - **목차(TOC) 구조**: 반드시 아래 형식만 사용하세요. 내부 태그에 별도 스타일이나 특수문자 코드를 넣지 마세요.
+    \`\`\`html
+    <div class='toc-box'>
+      <h3>Table of Contents</h3>
+      <ul>
+        <li><a href='#anchor1'>Section Title</a></li>
+      </ul>
+    </div>
+    \`\`\`
+  - **결론 중복 금지**: 글 마지막에 'Final Thoughts', 'Conclusion', '마치며'와 같은 별도의 H2 섹션을 만들지 마세요. 마지막 요약은 오직 \`closing-box\` 하나로 종결합니다.
 
   → HTML 주석(<!-- -->) 추가 삽입 금지.
 
@@ -266,12 +277,13 @@ HTML 소스코드를 생성한다.
   오직 텍스트 자체와 깔끔한 밑줄로만 승부할 것. 배경색(s1, s2 등)을 일절 사용하지 마세요.
   필수 포함: 비교 테이블 1개 + 모든 h2 섹션마다 이미지 플레이스홀더 1개씩 삽입 + 강조 박스 3~4개
   ★ 배치 순서 규칙: H2 제목 -> 이미지([[IMG_n]]) -> 설명 문단(p) -> [강조 박스 또는 링크 버튼] 순으로 배치할 것.
-  이미지는 섹션의 첫인상을 결정하므로 제목 바로 아래에 위치시킵니다.
+  ★ 결론 제한: 글 마지막에 "Final Thoughts" 등의 중복 섹션을 만들지 말고 바로 FAQ와 closing-box로 넘어가세요.
   박스 없는 순수 텍스트 섹션 최소 2개 확보 (해당 섹션도 이미지는 포함)
 
 ⑥ FAQ 8~12개 (압도적 정보량)
   본문에서 다루지 않은 실제 궁금증 / 각 답변 2~4문장
-  ★ 어미 활용: "~거거든요", "~더라고요", "~인 거예요" 등 친근한 구어체 사용.
+  ★ 말투 최적화 (Burstiness): "~거거든요", "~더라고요" 같은 구어체 어미는 전체 답변 중 2~3개에만 자연스럽게 섞으세요. 모든 문장의 끝에 기계적으로 붙이는 행위는 **절대 금지**입니다. 
+  ★ 다양성: "you know?", "you see." 같은 영어 추임새는 매우 드물게(전체 글 중 1~2회)만 사용하세요.
   FAQ Schema 포함
 
 ⑦ 면책조항
@@ -658,13 +670,17 @@ const STYLE = `
 
   .closing-box { background: #1e293b; color: #f8fafc; padding: 40px; border-radius: 24px; margin: 80px 0; text-align: center; }
   .closing-box p { font-style: italic; font-size: 19px; }
+  .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 100px 0 40px; color: #64748b; font-size: 13.5px; line-height: 1.6; text-align: justify; word-break: keep-all; }
+  .disclaimer-box strong { color: #475569; display: block; margin-bottom: 8px; }
 </style>
 <div class='vue-premium'>
 `;
 
 function report(msg, type = 'info') {
     const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'error' ? '🚨' : 'ℹ️';
-    console.log(`[${new Date().toLocaleTimeString()}] ${icon} ${msg}`);
+    const logMsg = `[${new Date().toLocaleTimeString()}] ${icon} ${msg}`;
+    console.log(logMsg);
+    // 향후 외부 로그 저장 로직 필요 시 여기에 추가
 }
 
 function clean(raw, mode = 'text') {
@@ -694,10 +710,16 @@ async function callAI(model, prompt) {
 
 async function searchSerper(query, lang) {
     try {
+        report(`🔍 [실시간 리서치]: "${query}" 관련 구글 검색 데이터 수집 중...`);
         const res = await axios.post('https://google.serper.dev/search', { q: query, gl: lang === 'ko' ? 'kr' : 'us', hl: lang }, { headers: { 'X-API-KEY': process.env.SERPER_API_KEY, 'Content-Type': 'application/json' } });
         const data = res.data.organic || [];
-        return { text: data.slice(0, 5).map(o => `Title: ${o.title}\nSnippet: ${o.snippet}`).join('\n\n') };
-    } catch (e) { return { text: '' }; }
+        const result = { text: data.slice(0, 5).map(o => `Title: ${o.title}\nSnippet: ${o.snippet}`).join('\n\n') };
+        report(`📊 [데이터 확보]: 상위 ${data.length}개 검색 결과 분석 완료`);
+        return result;
+    } catch (e) {
+        report(`⚠️ [Serper 에러]: 검색 데이터를 가져오지 못했습니다. (${e.message})`, 'warning');
+        return { text: '' };
+    }
 }
 
 async function genImg(prompt, model, idx) {
@@ -837,6 +859,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
     const langTag = `\n[TARGET_LANGUAGE]: ${lang === 'ko' ? 'Korean' : 'English'}`;
     report(`🔥 [${idx}/${total}] 집필 시작: ${target}`);
+    report(`💻 [AI 프롬프트 생성 중]: 리서치 데이터 ${searchData.length}자 포함...`);
 
     const h1Instruction = lang === 'ko'
         ? "<h1>(10년차 SEO 전문가의 구글 상단 노출을 위한 롱테일 키워드 제목)</h1>"
@@ -978,8 +1001,13 @@ ${langTag}`;
 
     finalHtml = finalHtml.replace(/\[\[IMG_\d+\]\]/gi, '').trim();
 
-    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: STYLE + finalHtml + '</div>', published: pTime.toISOString() } });
-    report(`✨ [완료]: ${finalTitle} (URL: ${res.data.url})`, 'success');
+    const disclaimer = lang === 'ko'
+        ? `<div class='disclaimer-box'><strong>⚖️ 면책 조항 (Disclaimer)</strong>본 포스팅은 개인적인 경험과 공개된 정보를 바탕으로 작성되었으며, 전문적인 법률, 금융 또는 기술적 자문을 대신할 수 없습니다. 정확한 정보 확인을 위해 반드시 해당 분야의 전문가나 공식 출처를 확인하시기 바랍니다. 본 콘텐츠의 이용으로 인해 발생하는 결과에 대해 필자는 책임을 지지 않습니다.</div>`
+        : `<div class='disclaimer-box'><strong>⚖️ Disclaimer</strong>This post is based on personal experience and publicly available information and does not constitute professional legal, financial, or technical advice. Please verify accurate information with a professional in the field or official sources. The owner of this content is not responsible for any outcomes resulting from the use of this information.</div>`;
+
+    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: STYLE + finalHtml + disclaimer + '</div>', published: pTime.toISOString() } });
+    report(`🖋️ [포스팅 성공]: "${finalTitle}"`, 'success');
+    report(`🔗 [URL]: ${res.data.url}`);
     return { title: finalTitle, url: res.data.url };
 }
 
@@ -990,6 +1018,8 @@ async function run() {
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
+
+    report(`⚙️ 설정을 로드했습니다. (언어: ${config.blog_lang}, 모드: ${config.post_mode})`);
 
     report('🛡️ [Turbo Full-Mode]: 프리미엄 클러스터 구축 시작');
 
@@ -1003,7 +1033,10 @@ async function run() {
     // 1단계: 세부 주제 추출
     const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
     const clusterPrompt = `You are a 10-year veteran blog Google SEO expert.
-    Create long-tail keywords based on '${baseKeyword}' and craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in ${langName}.
+    Create high-performing long-tail keywords BASED STRICTLY on the niche of '${baseKeyword}'. 
+    Craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in ${langName}.
+    
+    ★ CRITICAL: Stay within the context of PC technology, hardware, and specialized AI applications. Do NOT generate generic topics like healthcare, general medicine, or lifestyle unless it's a specific requirement of the keyword.
     
     Output ONLY a JSON array of 5 titles.`;
     const clusterRes = await callAI(model, clusterPrompt);
@@ -1013,6 +1046,9 @@ async function run() {
     if (Array.isArray(list) && list.length > 0 && typeof list[0] === 'object') {
         list = list.map(item => item.title || item.topic || item.headline || Object.values(item)[0]);
     }
+
+    report(`📜 [생성된 클러스터 구조]:`);
+    list.forEach((t, i) => report(`   ${i === 0 ? '🏆 Pillar' : '🎈 Spoke ' + i}: ${t}`));
 
     const pillarTitle = list[0]; const spokes = list.slice(1);
     const subLinks = [];

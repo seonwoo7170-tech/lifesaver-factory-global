@@ -11,7 +11,6 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: 'npm'
       - run: npm install googleapis @google/generative-ai axios form-data canvas p-limit
       - run: node cluster_engine.js
         env:

@@ -88,16 +88,12 @@ HTML 소스코드를 생성한다.
   ★ 절대 JSON 데이터 구조 형태로 출력하지 마세요. 
   ★ 마크다운(HTML 코드블록)을 사용하지 말고, 순수 텍스트와 HTML 코드만 바로 출력하세요.
   
-  [1] 글의 맨 첫 줄부터 반드시 썸네일과 본문 삽입용 이미지 정보를 다음 형식으로 작성하세요:
-  ★ 주의: 모든 필드 값은 [TARGET_LANGUAGE]에 지정된 언어로만 작성하십시오.
-  IMG_0: { mainTitle: "Thumbnail Title", subTitle: "Sub Caption", tag: "Label", bgPrompt: "English prompt for image generation" }
-  IMG_1: { prompt: "English prompt 16:9", alt: "Alt description", title: "Image insights title" }
-  IMG_2: { prompt: "English prompt 16:9", alt: "Alt description", title: "Image insights title" }
-  IMG_3: { prompt: "English prompt 16:9", alt: "Alt description", title: "Image insights title" }
+  [1] 메타데이터 및 본문 구조:
+  - 프롬프트 하단에 제시되는 [MISSION] 섹션의 출력 포맷(META_DATA_START 등)을 정확히 따르세요.
   
-  [2] 그 아래 비워두고, 본문 시작(TOC 혹은 서론)부터 바로 HTML 코드를 작성하세요.
-  ★ 절대 금지: 본문 내에 <h1> 태그를 포함하지 마세요! (Blogger의 타이틀이 이미 <h1> 역할을 하므로 본문 내 중복 시 SEO에 치명적입니다. 본문 첫 제목은 반드시 <h2>로 시작하세요.)
-  [3] 본문 내 이미지 삽입 위치: [[IMG_0]], [[IMG_1]], [[IMG_2]], [[IMG_3]] 형태로 삽입하세요.
+  [2] 본문 HTML 규칙:
+  - <h1> 태그 사용 금지 (플랫폼 타이틀과 중복 방지). 첫 제목은 <h2>로 시작.
+  - 이미지 삽입 위치: [[IMG_0]], [[IMG_1]], [[IMG_2]], [[IMG_3]] 치환자 사용.
 
   → HTML 주석(<!-- -->) 추가 삽입 금지.
 
@@ -843,6 +839,17 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 정확히 아래 포맷에 맞춰서 한 번에 모든 글을 작성해야 합니다. 절대 포맷을 어기지 마세요.
 전체 글 분량은 6,000자~8,000자 이상 확보하도록 상세하게 풀어 쓰세요. 특히, 짧게 넘어가지 말고 본문의 섹션별 설명을 매우 길게 늘려야 합니다.
 
+[필수 디자인 컴포넌트 - 반드시 본문에 포함하세요]:
+★ 배치 규칙: 박스는 절대로 문단 중간에 끼워 넣지 마세요. 해당 섹션의 모든 텍스트 설명이 끝난 최하단에 배치하여 시각적 마침표 역할을 하게 하세요.
+
+(A) 인사이트 박스 → <div class='insight-box'><strong>💡 Key Insight</strong><br>핵심 포인트 내용</div> — 최소 2개
+(B) 전문가 꿀팁 → <div class='tip-box'><strong>💡 Smileseon's Pro Tip</strong><br>꿀팁 내용</div> — 최소 2개
+(C) 치명적 주의 → <div class='warn-box'><strong>🚨 Critical Warning</strong><br>주의 내용</div> — 최소 1개
+(D) 신뢰 데이터 → <div class='data-box'><strong>📊 Fact Check</strong><br>팩트 체크 내용</div> — 최소 2개
+(E) 마무리 박스 → <div class='closing-box'><h2>최종 마무리</h2><p>핵심 요약</p></div> — 글 맨 마지막에 반드시 1개
+(F) 각 섹션에 가능하면 <table> 포함 (4열x4행 이상의 비교 데이터)
+(G) FAQ 섹션에 최소 8~10개의 Q&A 포함
+
 [META_DATA_START]
 {
   "IMG_0": { "mainTitle": "썸네일용 매력적인 짧은 제목", "bgPrompt": "썸네일 배경 이미지 묘사 영문 프롬프트" },
@@ -857,11 +864,21 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 <div class='toc-box'>목차...</div>
 <h2>첫번째 섹션</h2>
 <p>본문 내용...</p>
+<div class='insight-box'><strong>💡 Key Insight</strong><br>인사이트 내용</div>
 [[IMG_1]]
 <h2>두번째 섹션</h2>
 <p>본문 내용...</p>
+<div class='tip-box'><strong>💡 Smileseon's Pro Tip</strong><br>꿀팁 내용</div>
+<h2>세번째 섹션</h2>
+<p>본문 내용...</p>
+<div class='data-box'><strong>📊 Fact Check</strong><br>데이터 내용</div>
 [[IMG_2]]
-... 끝까지 (8~10개의 FAQ, 마무리 박스 포함)
+<h2>네번째 섹션</h2>
+<p>본문 내용...</p>
+<div class='warn-box'><strong>🚨 Critical Warning</strong><br>주의 내용</div>
+[[IMG_3]]
+... 끝까지 (8~10개의 FAQ, closing-box 마무리 포함)
+<div class='closing-box'><h2>최종 마무리</h2><p>핵심 요약</p></div>
 [CONTENT_END]
 
 ★ 경고: 본문 내에 이미지 삽입부에는 절대로 <img src=...> 태그를 쓰지 말고, 오직 [[IMG_1]], [[IMG_2]], [[IMG_3]] 과 같은 치환자만 적으세요.
@@ -876,20 +893,33 @@ ${langTag}`;
     let m0 = null;
     const imgMetas = {};
 
+    // === 메타데이터 파싱 (신규 포맷 + 레거시 포맷 모두 지원) ===
     try {
         const metaMatch = m1.match(/\[META_DATA_START\]([\s\S]*?)\[META_DATA_END\]/i);
         if (metaMatch) {
-            const cleanJsonStr = metaMatch[1].replace(/```json/i, '').replace(/```/i, '').trim();
+            const cleanJsonStr = metaMatch[1].replace(/```json/i, '').replace(/```/g, '').trim();
             const metaJson = JSON.parse(cleanJsonStr);
             if (metaJson.IMG_0) m0 = metaJson.IMG_0;
             if (metaJson.IMG_1) imgMetas[1] = metaJson.IMG_1;
             if (metaJson.IMG_2) imgMetas[2] = metaJson.IMG_2;
             if (metaJson.IMG_3) imgMetas[3] = metaJson.IMG_3;
         }
-    } catch (e) { console.log('⚠️ 메타 JSON 파싱 실패, 강제 복구 진행'); }
+    } catch (e) { report('⚠️ 신규 메타 파싱 실패, 레거시 파싱 시도', 'warning'); }
+
+    // 레거시 포맷 파싱 (IMG_0: { mainTitle: "...", bgPrompt: "..." })
+    if (!m0) {
+        const legacyRegex = /IMG_(\d+):\s*\{([^}]*)\}/gi;
+        let lm;
+        while ((lm = legacyRegex.exec(m1)) !== null) {
+            const i = lm[1], raw = lm[2];
+            if (i === '0') m0 = { mainTitle: (raw.match(/mainTitle:\s*['"](.*?)['"]/i) || [])[1] || target, bgPrompt: (raw.match(/bgPrompt:\s*['"](.*?)['"]/i) || raw.match(/prompt:\s*['"](.*?)['"]/i) || [])[1] || target };
+            else imgMetas[i] = { prompt: (raw.match(/prompt:\s*['"](.*?)['"]/i) || [])[1] || target };
+        }
+    }
 
     if (!m0) m0 = { mainTitle: target, bgPrompt: 'Abstract premium background' };
 
+    // === 본문 추출 ===
     const contentMatch = m1.match(/\[CONTENT_START\]([\s\S]*?)\[CONTENT_END\]/i);
     if (contentMatch) {
         finalHtml = contentMatch[1].trim();
@@ -897,6 +927,15 @@ ${langTag}`;
         const metaEndIdx = m1.indexOf('[META_DATA_END]');
         finalHtml = metaEndIdx !== -1 ? m1.substring(metaEndIdx + 15).trim() : clean(m1, 'text');
     }
+
+    // === 본문에서 메타데이터 잔여물 완전 제거 (최강 정규식) ===
+    finalHtml = finalHtml.replace(/\[META_DATA_START\][\s\S]*?\[META_DATA_END\]/gi, '');
+    finalHtml = finalHtml.replace(/\[CONTENT_START\]/gi, '').replace(/\[CONTENT_END\]/gi, '');
+    finalHtml = finalHtml.replace(/IMG_\d+\s*[:=]\s*\{[\s\S]*?\}/gi, '');
+    finalHtml = finalHtml.replace(/\{\s*"IMG_\d+"[\s\S]*?\}/g, '');
+    finalHtml = finalHtml.replace(/```json[\s\S]*?```/gi, '');
+    finalHtml = finalHtml.replace(/^\s*text\s*$/gm, '');
+    finalHtml = finalHtml.trim();
 
     let finalTitle = target;
     const h1Match = finalHtml.match(/<h1.*?>([\s\S]*?)<\/h1>/i);

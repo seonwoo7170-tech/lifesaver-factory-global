@@ -920,8 +920,8 @@ ${langTag}`;
         const legacyRegex = /IMG_(\d+):\s*\{([^}]*)\}/gi;
         let lm;
         while ((lm = legacyRegex.exec(m1)) !== null) {
-            const i = lm[1], raw = lm[2];
-            if (i === '0') m0 = { mainTitle: (raw.match(/mainTitle:\s*['"](.*?)['"]/i) || [])[1] || target, bgPrompt: (raw.match(/bgPrompt:\s*['"](.*?)['"]/i) || raw.match(/prompt:\s*['"](.*?)['"]/i) || [])[1] || target };
+            const i = Number(lm[1]), raw = lm[2];
+            if (i === 0) m0 = { mainTitle: (raw.match(/mainTitle:\s*['"](.*?)['"]/i) || [])[1] || target, bgPrompt: (raw.match(/bgPrompt:\s*['"](.*?)['"]/i) || raw.match(/prompt:\s*['"](.*?)['"]/i) || [])[1] || target };
             else imgMetas[i] = { prompt: (raw.match(/prompt:\s*['"](.*?)['"]/i) || [])[1] || target };
         }
     }
@@ -994,7 +994,11 @@ async function run() {
     report('🛡️ [Turbo Full-Mode]: 프리미엄 클러스터 구축 시작');
 
     let baseKeyword = config.pillar_topic || 'AI Tech';
-    if (baseKeyword === '자동생성') baseKeyword = (config.clusters || ['AI'])[0];
+    if (baseKeyword === '자동생성') {
+        const pool = config.clusters || ['AI'];
+        baseKeyword = pool[Math.floor(Math.random() * pool.length)];
+        report(`🎲 키워드 랜덤 추첨: ${baseKeyword}`);
+    }
 
     // 1단계: 세부 주제 추출
     const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
@@ -1003,7 +1007,12 @@ async function run() {
     
     Output ONLY a JSON array of 5 titles.`;
     const clusterRes = await callAI(model, clusterPrompt);
-    const list = JSON.parse(clean(clusterRes, 'arr'));
+    let list = JSON.parse(clean(clusterRes, 'arr'));
+
+    // [Safety Fix] AI가 ["A", "B"] 대신 [{"title":"A"}, {"title":"B"}] 형태로 줄 경우 처리
+    if (Array.isArray(list) && list.length > 0 && typeof list[0] === 'object') {
+        list = list.map(item => item.title || item.topic || item.headline || Object.values(item)[0]);
+    }
 
     const pillarTitle = list[0]; const spokes = list.slice(1);
     const subLinks = [];

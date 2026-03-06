@@ -926,12 +926,18 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 
 [CONTENT_START]
 ${h1Instruction}
-<div class='toc-box'>목차...</div>
-<h2>첫번째 섹션</h2>
+<div class='toc-box'>
+  <h3>Table of Contents</h3>
+  <ul>
+    <li><a href='#section-1'>첫번째 섹션 제목</a></li>
+    <li><a href='#section-2'>두번째 섹션 제목</a></li>
+  </ul>
+</div>
+<h2 id='section-1'>첫번째 섹션</h2>
 <p>본문 내용...</p>
 <div class='insight-box'><strong>💡 Key Insight</strong><br>인사이트 내용</div>
 [[IMG_1]]
-<h2>두번째 섹션</h2>
+<h2 id='section-2'>두번째 섹션</h2>
 <p>본문 내용...</p>
 <div class='tip-box'><strong>💡 Smileseon's Pro Tip</strong><br>꿀팁 내용</div>
 <h2>세번째 섹션</h2>

@@ -872,7 +872,9 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 전체 글 분량은 6,000자~8,000자 이상 확보하도록 상세하게 풀어 쓰세요. 특히, 짧게 넘어가지 말고 본문의 섹션별 설명을 매우 길게 늘려야 합니다.
 
 [필수 디자인 컴포넌트 - 반드시 본문에 포함하세요]:
-★ 배치 규칙: 박스는 절대로 문단 중간에 끼워 넣지 마세요. 해당 섹션의 모든 텍스트 설명이 끝난 최하단에 배치하여 시각적 마침표 역할을 하게 하세요.
+★ 배치 전략:
+    - 글이 지루해지지 않도록, H2 텍스트가 2개째 등장하는 타이밍마다 삽입하여 독자의 시선을 적절하게 환기하세요.
+    - **[Time Awareness]**: Today's date is ${new Date().toISOString().split('T')[0]}. Always write based on the latest available information as of today. If referencing years, focus on the current year and future trends.
 
 (A) 인사이트 박스 → <div class='insight-box'><strong>💡 Key Insight</strong><br>핵심 포인트 내용</div> — 최소 2개
 (B) 전문가 꿀팁 → <div class='tip-box'><strong>💡 Smileseon's Pro Tip</strong><br>꿀팁 내용</div> — 최소 2개
@@ -1023,20 +1025,69 @@ async function run() {
 
     report('🛡️ [Turbo Full-Mode]: 프리미엄 클러스터 구축 시작');
 
-    let baseKeyword = config.pillar_topic || 'AI Tech';
+    let baseKeyword = config.pillar_topic || 'PC Hardware';
+    const categories = {
+        "1": { name: "Digital & PC Hardware", query: "latest PC hardware news components 2026" },
+        "2": { name: "AI & Future Technology", query: "artificial intelligence future tech trends 2026" },
+        "3": { name: "Cooking & Food Recipes", query: "trending food recipes gourmet cooking 2026" },
+        "4": { name: "Fashion & Beauty Style", query: "latest fashion trends beauty style 2026" },
+        "5": { name: "Health & Medical Insight", query: "health wellness medical breakthroughs 2026" },
+        "6": { name: "Global News & Issues", query: "breaking global news world issues summary 2026" },
+        "7": { name: "Finance & Stock Market", query: "finance stock market investment trends 2026" },
+        "8": { name: "Travel & World Adventure", query: "world travel destinations adventure lifestyle 2026" },
+        "9": { name: "Home Design & Interior", query: "modern home interior design furniture trends 2026" },
+        "10": { name: "Marketing & Money Biz", query: "digital marketing business passive income 2026" },
+        "11": { name: "Entertainment & Culture", query: "latest movies entertainment pop culture 2026" },
+        "12": { name: "Parenting & Education", query: "parenting tips education trends self improvement 2026" }
+    };
+
     if (baseKeyword === '자동생성') {
-        const pool = config.clusters || ['AI'];
-        baseKeyword = pool[Math.floor(Math.random() * pool.length)];
-        report(`🎲 키워드 랜덤 추첨: ${baseKeyword}`);
+        const targetCats = config.target_categories || ["1"];
+        let selectedCatKey;
+
+        if (targetCats.includes("ALL")) {
+            const keys = Object.keys(categories);
+            selectedCatKey = keys[Math.floor(Math.random() * keys.length)];
+            report(`🌐 [ALL 모드]: 전체 카테고리 중 랜덤 선정 (\${categories[selectedCatKey].name})`);
+        } else {
+            selectedCatKey = targetCats[Math.floor(Math.random() * targetCats.length)];
+            report(`📂 [복수 카테고리]: 선택된 목록 중 선정 (\${categories[selectedCatKey].name})`);
+        }
+
+        const currentCat = categories[selectedCatKey];
+        report(`🔍 [실시간 트렌드 분석]: \${currentCat.name} 분야의 최신 이슈를 파악합니다...`);
+
+        const trendSource = await searchSerper(currentCat.query, config.blog_lang);
+        const pool = config.clusters || [];
+
+        const selectionPrompt = `You are an elite trend analyst. 
+        Today's date is \${new Date().toISOString().split('T')[0]}.
+        Category: \${currentCat.name}
+        
+        [Real-time News]:
+        \${trendSource.text}
+        
+        [Keyword Pool]:
+        \${pool.slice(0, 50).join(', ')}
+        
+        ★ MISSION: Select the best keyword from the pool OR create a new one based on trends.
+        Output only the final keyword.`;
+
+        const selectionRes = await callAI(model, selectionPrompt);
+        baseKeyword = selectionRes.trim().replace(/^"|"$/g, '');
+        report(`🎯 최종 전략 주제 확정: [ \${baseKeyword} ]`);
+    } else {
+        report(`📌 고정 키워드 사용: \${baseKeyword}`);
     }
 
     // 1단계: 세부 주제 추출
     const langName = config.blog_lang === 'ko' ? 'Korean' : 'English';
     const clusterPrompt = `You are a 10-year veteran blog Google SEO expert.
-    Create high-performing long-tail keywords BASED STRICTLY on the niche of '${baseKeyword}'. 
-    Craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in ${langName}.
+    Today's date is \${new Date().toISOString().split('T')[0]}. 
+    Create high-performing long-tail keywords BASED STRICTLY on the niche of '\${baseKeyword}'. 
+    Craft 5 blog post titles (1 Pillar + 4 Spokes) that can rank at the top of Google search results in \${langName}.
     
-    ★ CRITICAL: Stay within the context of PC technology, hardware, and specialized AI applications. Do NOT generate generic topics like healthcare, general medicine, or lifestyle unless it's a specific requirement of the keyword.
+    ★ CRITICAL: All information, trends, and year-based tags MUST reflect the context of NOW (\${new Date().getFullYear()}). Do NOT use outdated years like 2024.
     
     Output ONLY a JSON array of 5 titles.`;
     const clusterRes = await callAI(model, clusterPrompt);

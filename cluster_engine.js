@@ -347,14 +347,16 @@ async function run() {
     const config = JSON.parse(fs.readFileSync('cluster_config.json', 'utf8'));
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({ 
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ 
         model: 'gemini-2.0-flash',
         systemInstruction: 'Act as a top-tier SEO expert and professional blogger writing high-quality content.'
     });
     const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const blogger = google.blogger({ version: 'v3', auth });
-    report('🛡️ [Safety Mode]: IP 평판 및 자동화 감지 우회를 위해 90초간 대기 후 작업을 시작합니다...');
-    await new Promise(r => setTimeout(r, 90000));
+    report('🛡️ [Turbo Mode]: 즉시 작업을 시작합니다!');
+    // await new Promise(r => setTimeout(r, 90000));
     let globalArchives = [];
     try {
         const archRes = await blogger.posts.list({ blogId: config.blog_id, maxResults: 15, fields: 'items(title,url)' });
@@ -365,6 +367,7 @@ async function run() {
     } catch (e) {
         report('⚠️ 연관 글 데이터를 불러올 수 없습니다.', 'warning');
     }
+
     // 1단계: 이번 회차에 작업할 단 하나의 키워드 랜덤 선정
     let baseKeyword = '';
     if (config.pillar_topic && config.pillar_topic !== '자동생성') {
@@ -378,12 +381,12 @@ async function run() {
     
     const entropy = new Date().getTime() + '-' + Math.floor(Math.random() * 1000);
     const langName = config.blog_lang === 'en' ? 'English' : 'Korean';
-    const mainTopicPrompt = `[ID: ${entropy}]\\n당신은 수십 년 경력의 SEO 최상위 전문가이자 구글 상단 노출을 노리는 롱테일 키워드 전문가다.\\n주어진 키워드를 바탕으로, 독자의 클릭을 유도하고 상위 노출에 절대적으로 유리한 독창적인 롱테일(Long-tail) 후킹 제목을 단 1개만 제작하라.\\n\\n메인 키워드: \"${baseKeyword}\"\\n\\n★ 중요: 반드시 '${langName}'으로 출력하라.\\n- 구글 알고리즘이 사랑하는 동시에 인간의 본성(호기심, 손실 회피, 정보 갈증 등)을 강렬하게 자극하는 창의적인 문장이어야 한다.\\n- 항상 쓰이는 뻔한 패턴(How to, Guide 등)을 탈피하고, 매번 전혀 다른 문장 구조와 매력적인 단어를 사용할 것.\\n- 반드시 제목에 메인 키워드 [ ${baseKeyword} ]가 자연스럽게 포함되어야 한다.\\n- 30~50자 내외. 따옴표 없이 텍스트만 딱 1줄 출력.`;
+    const mainTopicPrompt = `[ID: ${entropy}]\\n당신은 수십 년 경력의 SEO 최상위 전문가이자 구글 상단 노출을 노리는 롱테일 키워드 전문가다.\\n주어진 키워드를 바탕으로, 독자의 클릭을 유도하고 상위 노출에 절대적으로 유리한 독창적인 롱테일(Long-tail) 후킹 제목을 단 1개만 제작하라.\\n\\n메인 키워드: \"${baseKeyword}\"\\n\\n★ 중요: 반드시 '\${langName}'으로 출력하라.\\n- 구글 알고리즘이 사랑하는 동시에 인간의 본성(호기심, 손실 회피, 정보 갈증 등)을 강렬하게 자극하는 창의적인 문장이어야 한다.\\n- 항상 쓰이는 뻔한 패턴(How to, Guide 등)을 탈피하고, 매번 전혀 다른 문장 구조와 매력적인 단어를 사용할 것.\\n- 반드시 제목에 메인 키워드 [ ${baseKeyword} ]가 자연스럽게 포함되어야 한다.\\n- 30~50자 내외. 따옴표 없이 텍스트만 딱 1줄 출력.`;
     const seed = await callAI(model, mainTopicPrompt) || baseKeyword;
 
     report(`🎯 메인 주제 선정: ${seed}`);
     report('🔎 세부 전문 주제(Spoke) 4종 추출 중...');
-    const subTopicsPrompt = `메인 주제: \"${seed}\"\\n위 주제를 보완할 아주 구체적이고 니치(Niche)한 세부 주제 4개를 생성하라.\\n★ 중요: 결과는 반드시 '${langName}'으로 출력(주제1, 주제2, 주제3, 주제4)하라.\\n- 전략: 광범위한 주제 대신 '입문자를 위한 설정법', '숨겨진 꿀팁 3가지', '경쟁 도구와 전격 비교' 등 롱테일 검색어를 타겟팅할 것.\\n- 출력 형식: 주제1, 주제2, 주제3, 주제4 (반드시 콤마로만 구분, 다른 부연 설명 금지)`;
+    const subTopicsPrompt = `메인 주제: \"${seed}\"\\n위 주제를 보완할 아주 구체적이고 니치(Niche)한 세부 주제 4개를 생성하라.\\n★ 중요: 결과는 반드시 '\${langName}'으로 출력(주제1, 주제2, 주제3, 주제4)하라.\\n- 전략: 광범위한 주제 대신 '입문자를 위한 설정법', '숨겨진 꿀팁 3가지', '경쟁 도구와 전격 비교' 등 롱테일 검색어를 타겟팅할 것.\\n- 출력 형식: 주제1, 주제2, 주제3, 주제4 (반드시 콤마로만 구분, 다른 부연 설명 금지)`;
     const subTopicsRaw = await callAI(model, subTopicsPrompt);
     const subTopicBaseList = subTopicsRaw.split(/[\\n,]+/).map(t => t.replace(/^\\d+\\.\\s*/, '').trim()).filter(Boolean).slice(0, 4);
 
@@ -396,7 +399,7 @@ async function run() {
     for (let i = 0; i < 4; i++) {
         currentPubTime += getRandOffset();
         const baseSub = subTopicBaseList[i] || (baseKeyword + ' related features');
-        const subTitlePrompt = `당신은 수십 년 경력의 구글 상단 노출 특화 SEO 전문가이자 카피라이터다.\\n아래 '메인 키워드'와 '세부 주제'를 조합하여, 구글 틈새 검색을 장악할 수 있는 극도로 매력적이고 독창적인 롱테일 후킹 제목을 '딱 1개'만 제작하라.\\n\\n메인 키워드: \"${baseKeyword}\"\\n세부 주제: \"${baseSub}\"\\n\\n★ 중요: 반드시 '${langName}'으로 출력하라.\\n- 뻔한 어투(Step-by-step, Tutorial 등)를 버리고, 파격적이고 눈길을 끄는 다채로운 포맷(예상치 못한 결과, 비하인드 스토리, 전문가의 경고 등)을 자유자재로 기획하여 다른 글들과 제목 패턴이 절대 겹치지 않게 하라.\\n- 반드시 제목에 [ ${baseKeyword} ] 또는 관련 핵심 용어가 포함되어야 한다.\\n- 25~45자 내외. 따옴표 없이 오직 텍스트만 딱 1줄 출력.`;
+        const subTitlePrompt = `당신은 수십 년 경력의 구글 상단 노출 특화 SEO 전문가이자 카피라이터다.\\n아래 '메인 키워드'와 '세부 주제'를 조합하여, 구글 틈새 검색을 장악할 수 있는 극도로 매력적이고 독창적인 롱테일 후킹 제목을 '딱 1개'만 제작하라.\\n\\n메인 키워드: \"${baseKeyword}\"\\n세부 주제: \"${baseSub}\"\\n\\n★ 중요: 반드시 '\${langName}'으로 출력하라.\\n- 뻔한 어투(Step-by-step, Tutorial 등)를 버리고, 파격적이고 눈길을 끄는 다채로운 포맷(예상치 못한 결과, 비하인드 스토리, 전문가의 경고 등)을 자유자재로 기획하여 다른 글들과 제목 패턴이 절대 겹치지 않게 하라.\\n- 반드시 제목에 [ ${baseKeyword} ] 또는 관련 핵심 용어가 포함되어야 한다.\\n- 25~45자 내외. 따옴표 없이 오직 텍스트만 딱 1줄 출력.`;
         let targetSub = await callAI(model, subTitlePrompt);
         targetSub = targetSub ? targetSub.split('\\n')[0].replace(/^\\d+\\.\\s*/, '').replace(/[\"\']/g, '').trim() : '';
         if(!targetSub) targetSub = baseSub;
@@ -404,8 +407,8 @@ async function run() {
         const res = await writeAndPost(model, targetSub, config.blog_lang || 'ko', blogger, config.blog_id, new Date(currentPubTime), [], i + 1, 5, baseKeyword, globalArchives);
         if(res && res.url) subLinks.push(res);
         
-        report('💤 [Safety Mode]: 다음 포스팅 시작 전 45초간 대기합니다...');
-        await new Promise(r => setTimeout(r, 45000));
+        report('💤 [Next Post]: 다음 포스팅으로 넘어갑니다. (10초 대기)');
+        await new Promise(r => setTimeout(r, 10000));
     }
 
     report('🏆 모든 정보가 집결된 메인 필러 포스트(허브) 집필 시작...');

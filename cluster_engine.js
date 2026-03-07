@@ -423,19 +423,18 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     let pillarContext = '';
 
     if (extraLinks.length > 0) {
-        const links = extraLinks.map((l, idx) => `[서브글 ${idx + 1}] 제목: ${l.title}\n실제접속URL: ${l.url}`).join('\n\n');
         const isKo = lang === 'ko';
-        const btnText = isKo ? "자세히 보기 →" : "Read More →";
+        const btnText = isKo ? "▶ 관련 가이드 자세히 보기" : "▶ Read More Guide";
+        const links = extraLinks.map((l, idx) => `[서브글 ${idx + 1}] 제목: ${l.title}\n[복사해서 본문에 넣을 HTML 코드]:\n<div style='margin: 40px 0;'><p style='font-size:16px; font-weight:700; color:#334155;'>🎯 Related Deep Dive:</p><a href='${l.url}' class='cluster-btn'>${l.title} ${btnText}</a></div>`).join('\n\n');
+
         const contextPrompt = isKo
             ? `[INTERNAL_LINK_PUNITIVE_MISSION]: 이 포스팅은 메인 허브(Pillar) 글입니다. 
             ★ 절대 규칙: 아래 제공된 ${extraLinks.length}개의 <서브글> 리스트를 기반으로, 본문 중간중간 관련된 내용이 나올 때 해당 서브글로 이동하는 버튼을 **반드시 각각 하나씩** 삽입하세요.
-            버튼을 삽입할 때는 아래 HTML 규격을 따르되, 링크주소 부분에는 제가 아래에 제공한 [실제접속URL] 값을 "정확히" 그대로 넣어야 합니다. (서브글URL, URL 등 가짜 글자가 들어가면 안 됩니다.)
-            코드 예시: <a href='여기에_실제접속URL_값을_그대로_넣으세요' class='cluster-btn'>${btnText}</a>`
+            ⚠️ 엉뚱한 링크를 만들지 마세요! 아래 리스트에 있는 **[복사해서 본문에 넣을 HTML 코드]**를 1글자도 바꾸지 말고 그대로 복사해서 배치만 하세요.`
             : `[INTERNAL_LINK_PUNITIVE_MISSION]: This is a Pillar post. 
             ★ STRICT RULE: You must insert exactly ${extraLinks.length} buttons in the article body linking to the provided sub-articles.
-            Use the HTML format below, and replace the href value with the actual 'URL' provided in the list below. DO NOT use placeholder text like 'SpokeURL'.
-            Example: <a href='INSERT_ACTUAL_URL_HERE' class='cluster-btn'>${btnText}</a>`;
-        pillarContext = `\n${contextPrompt}\n\n[서브글 목록]\n${links}`;
+            ⚠️ DO NOT generate your own links! Simply COPY AND PASTE the exact **[복사해서 본문에 넣을 HTML 코드]** provided below into appropriate related sections of your content.`;
+        pillarContext = `\n${contextPrompt}\n\n[서브글 목록 및 주입용 코드]\n${links}`;
     }
 
     const personaTag = persona ? `\n[SPECIFIC_PERSONA]: ${persona}` : '';

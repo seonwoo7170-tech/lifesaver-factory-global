@@ -93,28 +93,23 @@ HTML 소스코드를 생성한다.
 ■ 분량: 7,000자 ~ 최대 9,000자 (지정된 TARGET_LANGUAGE 텍스트 기준)
   ★ [초강력 경고]: 요약된 개조식 리스트만 남발하지 말고, 압도적인 서사(전문가의 썰, 구체적 예시, 풍부한 설명)를 텍스트 단락(<p>)으로 길게 풀어내어 분량을 강제로 늘리되, 가독성을 위해 문단을 잘게 쪼개세요.
 
-■ 출력 규칙:
+■ 출력 규칙 및 치트키 (AI 흔적 완벽 제거):
   [1] 상단 이미지 메타데이터: IMG_0~3 (JSON 형식)
   [2] 본문 HTML: <h1> 태그 금지. 첫 제목은 <h2>.
   [3] 이미지 치환자: [[IMG_0]], [[IMG_1]], [[IMG_2]], [[IMG_3]]
-  [4] **제목 숫자 금지**: 모든 제목(H2, H3)에 '1.', '2.', 'Step 1.' 같은 숫자나 순번을 **절대로** 붙이지 마세요. 매끄러운 텍스트 제목만 허용합니다. (AI 패턴 회피 핵심)
-  [5] **AI 상투어 절대 금지**: \`In conclusion\`, \`In today's fast-paced world\`, \`Let's dive in\`, \`Slower than molasses in January\` 등 전형적인 AI 오프닝/클로징/비유를 싹 다 지우세요.
-  [6] **비유의 현대화**: 테크 전문가답게 현대적인 비유를 쓰세요 (예: 'Slower than a 56k modem', 'Taking longer to boot than it does to brew a coffee' 등).
-  [7] **경험 서사 패턴 다변화**: 매번 'I once had a client...'로 시작하지 마세요. 대신 "The biggest culprit I see in my shop is...", "In the field, I always insist on..." 등 실제 수리점 현업자의 말투를 섞으세요.
-  [8] **구어체(Contractions) 및 권위**: \`Don't\`, \`It's\`를 기본으로 하되, FAQ에서 자신감 없는 \`I guess\`, \`you know?\`는 빼버리고 "In my professional opinion," 또는 "Trust me, your hardware will thank you."로 마무리하세요.
-  [9] **2026년 리얼리티**: 2026년 최신 트렌드(AI Accelerator NPU 관리, Browser Memory Saver 등)를 자연스럽게 한 줄 언급하여 글의 신선도를 높이세요.
-  [10] **리듬의 변주 (Dynamic Rhythm)**: 문장과 문단의 길이를 의도적으로 뒤섞으세요. 3~4줄의 긴 설명 뒤에는 반드시 한 마디짜리 짧은 문장(예: "It works.", "No exceptions.")을 배치하세요.
-  [11] **개조식 지양**: 모든 정보를 리스트(Bullet points)로 정리하지 마세요. 핵심 노하우는 텍스트 단락 안에서 풍부한 어휘로 길게 풀어쓰는 것이 훨씬 더 인간적입니다.
-  [12] **결론 유니크화**: 'Conclusion' 대신 상황에 맞는 독특한 H2 제목을 사용하고, \`closing-box\`가 그 역할을 대신합니다.
+  [4] **제목 숫자 금지**: 모든 제목(H2, H3)에 '1.', '2.', 'Step 1.' 같은 숫자나 순번을 **절대로** 붙이지 마세요. 매끄러운 텍스트 제목만 허용합니다. (나열식 구조 탈피)
+  [5] **AI 상투어 완전 박멸**: "10년 차 전문가로서...", "오늘의 주제는~", "결론적으로", "잊지 못할 특별한 경험", "댓글로 공유해주세요!" 등 AI 특유의 정형화된 서론/결론과 뻔한 형용사를 모조리 지우세요.
+  [6] **구체적 에피소드(핵심 치트키)**: 두루뭉술한 썰이 아니라 "2024년 여름, 몰디브 OO 리조트 투숙 중 에어컨 고장으로 겪은 최악의 서비스"와 같이 아주 구체적인 시점, 장소, 상황을 본문에 노출하여 생생한 인간의 경험을 증명하세요.
+  [7] **문장 길이의 극단적 변주**: AI의 정형화된 문장 길이를 깨부수세요! 호흡이 긴 문장 뒤에는 "진짜 럭셔리는 따로 있습니다.", "최악이었죠.", "명심하세요." 같은 아주 짧은 단답형 문장을 무작위로 섞으세요.
+  [8] **냉소적/위트있는 솔직함**: 지나친 친절함과 긍정을 버리세요. "비싼 돈 주고 갔는데 이건 정말 돈 낭비였습니다", "이런 서비스는 돈 낭비입니다" 등 약간 까칠하고 냉소적인 비판을 반드시 1~2개 포함하세요. 이것이 독자가 이 글을 '진짜 사람이 쓴 글'이라 확신하게 만드는 핵심입니다.
+  [9] **나열식 구조 최소화**: '3가지 장점', '4가지 특징' 형태로 무조건 번호 매겨 나열하는 기계계적인 템플릿 구조를 피하고, 썰을 풀듯 자연스러운 문단 전개(의식의 흐름)를 우선하세요.
+  [10] **결론 유니크화**: 'Conclusion' 대신 상황에 맞는 독특한 H2 제목을 사용하고, \`closing-box\`에서 상투적인 질문 대신 뼈 때리는 조언으로 쿨하게 마무리하세요.
 
 ════════════════════════════════════════
   PART D — Zero-AI Signature (금지 및 필수 지침)
 ════════════════════════════════════════
-  [1] **금지 접속사**: \`In addition\`, \`Furthermore\`, \`Moreover\`, \`Additionally\`, \`Consequently\` 등 기계적인 연결어를 절대 쓰지 마세요. 대신 문맥적으로 자연스럽게 넘어가거나(예: "Here's the catch...", "But wait, there's more..."), 앞 문장의 단어를 받아 설명하세요.
-  [2] **금지 상투어**: \`It is important to\`, \`It is crucial to\`, \`Make sure to\`, \`Not only A but also B\` 등 교과서적인 패턴을 금지합니다.
-  [3] **부사 남발 금지**: \`Regularly\`, \`Properly\`, \`Effectively\` 같이 영혼 없는 부사를 빼고, 구체적으로 어떻게 하는지 행동 위주로 묘사하세요.
-  [4] **구조의 파격**: [서론-본론1,2,3-결론]의 뻔한 구조를 버리세요. 중간에 갑자기 개인적인 고찰을 던지거나, 실패 사례를 깊게 파고드는 등 독자가 정보의 '리듬'을 예측할 수 없게 하세요.
-  [5] **디테일의 끝**: "기기를 정기적으로 점검하세요"라고 하지 말고, "작업실 구석에 쌓인 고양이 털이 당신의 쿨러 속도를 15% 늦추고 있습니다"라고 구체적으로 말하세요.
+  [1] **금지 접속사**: \`In addition\`, \`Furthermore\`, \`Moreover\`, \`Additionally\`, \`Consequently\` 등 기계적인 연결어를 절대 쓰지 마세요. 대신 문맥적으로 자연스럽게 넘어가거나 앞 문장의 단어를 받아 설명하세요.
+  [2] **디테일의 끝**: "기기를 정기적으로 점검하세요"라고 하지 말고, "작업실 구석에 쌓인 고양이 털이 쿨러 속도를 15% 늦추고 있습니다"라고 구체적이고 감각적으로 묘사하세요.
 
 ════════════════════════════════════════
   PART F — 글 구조 (프레임워크)
@@ -157,32 +152,99 @@ HTML 소스코드를 생성한다.
 const STYLE = `
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap');
-  .vue-premium { font-family: 'Pretendard', sans-serif; color: #334155; line-height: 1.85; font-size: 17px; max-width: 840px; margin: 0 auto; padding: 40px 24px; word-break: keep-all; background-color: #ffffff; }
-  .vue-premium p { margin: 30px 0; letter-spacing: -0.015em; }
-  .vue-premium h2 { font-size: 28px; font-weight: 800; color: #0f172a; margin: 80px 0 35px; display: flex; align-items: center; gap: 12px; }
-  .vue-premium h2::before { content: ''; display: block; width: 6px; height: 32px; background: linear-gradient(to bottom, #3b82f6, #6366f1); border-radius: 4px; }
-  .vue-premium h3 { font-size: 22px; font-weight: 700; color: #1e293b; margin: 45px 0 20px; }
-  .toc-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 20px; padding: 35px; margin: 50px 0; box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05); }
-  .toc-box h3 { margin-top: 0; font-size: 20px; font-weight: 800; color: #0f172a; margin-bottom: 25px; display: flex; align-items: center; gap: 8px; }
-  .toc-box h3::before { content: '📋'; font-size: 22px; }
+  
+  /* 전역 컨테이너 */
+  .vue-premium { 
+    font-family: 'Pretendard', sans-serif; 
+    color: #334155; 
+    line-height: 1.85; 
+    font-size: 17px; 
+    max-width: 840px; 
+    margin: 0 auto; 
+    padding: 40px 24px; 
+    word-break: keep-all; 
+    background-color: #ffffff;
+  }
+  
+  /* 본문 텍스트 */
+  .vue-premium p { 
+    margin: 30px 0; 
+    letter-spacing: -0.015em; 
+  }
+  
+  /* H2 (섹션 제목) - 그라데이션 및 세련된 디자인 */
+  .vue-premium h2 { 
+    font-size: 28px; 
+    font-weight: 800; 
+    color: #0f172a; 
+    margin: 80px 0 35px; 
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .vue-premium h2::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 32px;
+    background: linear-gradient(to bottom, #3b82f6, #6366f1);
+    border-radius: 4px;
+  }
+  
+  /* H3 (소제목) */
+  .vue-premium h3 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 45px 0 20px;
+  }
+
+  /* 목차 상자 */
+  .toc-box { 
+    background: #f1f5f9; 
+    border: 1px solid #e2e8f0; 
+    border-radius: 16px; 
+    padding: 30px 35px; 
+    margin: 45px 0; 
+  }
+  .toc-box h3 { margin-top: 0; font-size: 19px; margin-bottom: 20px; }
   .toc-box ul { list-style: none; padding: 0; margin: 0; }
-  .toc-box li { margin-bottom: 14px; position: relative; padding-left: 24px; transition: all 0.2s; }
-  .toc-box li::before { content: '\\25B6'; position: absolute; left: 0; color: #3b82f6; font-size: 10px; top: 6px; }
-  .toc-box a { color: #475569; text-decoration: none; font-weight: 600; display: block; border-bottom: 1px solid transparent; width: fit-content; }
-  .toc-box a:hover { color: #2563eb; border-bottom: 1px solid #3b82f6; }
-  .insight-box { background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 12px; padding: 20px 24px; color: #166534; font-size: 16px; margin: 40px 0; overflow: hidden; clear: both; }
-  .insight-box strong { display: block; font-size: 18px; color: #15803d; margin-bottom: 8px; }
-  .tip-box { background: #fefce8; border-left: 4px solid #eab308; border-radius: 12px; padding: 20px 24px; color: #854d0e; font-size: 16px; margin: 40px 0; overflow: hidden; clear: both; }
-  .tip-box strong { display: block; font-size: 18px; color: #a16207; margin-bottom: 8px; }
-  .warn-box { background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 12px; padding: 20px 24px; color: #991b1b; font-size: 16px; margin: 40px 0; overflow: hidden; clear: both; }
-  .warn-box strong { display: block; font-size: 18px; color: #b91c1c; margin-bottom: 8px; }
-  .data-box { background: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 12px; padding: 20px 24px; color: #1e40af; font-size: 16px; margin: 40px 0; overflow: hidden; clear: both; }
-  .data-box strong { display: block; font-size: 18px; color: #1d4ed8; margin-bottom: 8px; }
+  .toc-box li { margin-bottom: 15px; position: relative; padding-left: 25px; }
+  .toc-box li::before { content: '▶'; position: absolute; left: 0; color: #3b82f6; font-size: 10px; top: 4px; }
+  .toc-box a { color: #475569; text-decoration: none; font-weight: 500; }
+
+  /* 팁, 경고, 인사이트, 데이터 상자 통합 디자인 */
+  .tip-box, .warn-box, .insight-box, .data-box { border-radius: 16px; padding: 26px 30px; margin: 40px 0; position: relative; border: 1px solid transparent; }
+  
+  .tip-box { background: #f0fdf4; border-color: #dcfce7; color: #166534; }
+  .warn-box { background: #fff1f2; border-color: #ffe4e6; color: #991b1b; }
+  .insight-box { background: #fdf2f8; border-color: #fce7f3; color: #9d174d; }
+  .data-box { background: #eff6ff; border-color: #dbeafe; color: #1e40af; }
+
+  /* 테이블 */
   .vue-premium table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 45px 0; border-radius: 16px; overflow: hidden; border: 1px solid #f1f5f9; }
   .vue-premium th { background: #f8fafc; padding: 20px; font-weight: 700; }
   .vue-premium td { padding: 18px 20px; border-top: 1px solid #f1f5f9; }
-  .cluster-btn { display: block; background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); color: white !important; padding: 16px 30px; border-radius: 12px; text-decoration: none !important; font-weight: 700; text-align: center; margin: 30px 0; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3); }
-  .closing-box { background: #1e293b; color: #f8fafc; padding: 40px; border-radius: 24px; margin: 80px 0; text-align: center; }
+
+  /* 버튼 */
+  .cluster-btn {
+    display: block;
+    background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
+    color: white !important;
+    padding: 16px 30px;
+    border-radius: 12px;
+    text-decoration: none !important;
+    font-weight: 700;
+    text-align: center;
+    margin: 30px 0;
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+  }
+
+  /* 마무리 상자 (라이트 파스텔 오렌지 테마) */
+  .closing-box { background: #fff7ed; border: 2px dashed #fed7aa; color: #9a3412; padding: 45px; border-radius: 24px; margin: 80px 0; text-align: center; }
+  .closing-box h2 { justify-content: center; margin-top: 0; color: #ea580c; border: none; }
+  .closing-box h2::before { display: none; }
+  .closing-box p { font-style: italic; font-size: 19px; color: #c2410c; }
   .disclaimer-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 100px 0 40px; color: #64748b; font-size: 13.5px; line-height: 1.6; text-align: justify; word-break: keep-all; }
   .disclaimer-box strong { color: #475569; display: block; margin-bottom: 8px; }
 </style>

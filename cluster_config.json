@@ -3,9 +3,15 @@
   "blog_lang": "en",
   "post_mode": "single",
   "daily_count": 1,
-  "pillar_topic": "자동생성",
   "target_categories": [
-    "1"
+    "ALL"
   ],
-  "clusters": []
+  "pillar_topic": "자동생성",
+  "clusters": [
+    "NVIDIA RTX 5090",
+    "PC Bottleneck",
+    "Windows 12 AI",
+    "Gaming PC Power",
+    "Gen5 NVMe SSD"
+  ]
 }

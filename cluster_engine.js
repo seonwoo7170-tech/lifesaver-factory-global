@@ -251,15 +251,17 @@ const STYLE = `
 <div class='vue-premium'>
 `;
 
-function getKST() {
-    const now = new Date();
-    const kstOffset = 9 * 60 * 60 * 1000;
-    return new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + kstOffset);
+function getKSTDateString() {
+    return new Date(Date.now() + 9 * 3600000).toISOString().split('T')[0];
+}
+
+function getLogTime() {
+    return new Date(Date.now() + 9 * 3600000).toISOString().split('T')[1].substring(0, 8);
 }
 
 function report(msg, type = 'info') {
     const icon = type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'error' ? '🚨' : 'ℹ️';
-    const logMsg = `[${getKST().toLocaleTimeString('ko-KR')}] ${icon} ${msg}`;
+    const logMsg = `[${getLogTime()} KST] ${icon} ${msg}`;
     console.log(logMsg);
 }
 
@@ -522,7 +524,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
 [필수 디자인 컴포넌트 - 반드시 본문에 포함하세요]:
 ★ 배치 전략:
     - 글이 지루해지지 않도록, H2 텍스트가 2개째 등장하는 타이밍마다 삽입하여 독자의 시선을 적절하게 환기하세요.
-    - **[Time Awareness]**: Today's date is ${getKST().toISOString().split('T')[0]}. Always write based on the latest available information as of today. If referencing years, focus on the current year and future trends.
+    - **[Time Awareness]**: Today's date is ${getKSTDateString()}. Always write based on the latest available information as of today. If referencing years, focus on the current year and future trends.
 
 (A) 인사이트 박스 → <div class='insight-box'><strong>💡 Key Insight</strong><br>핵심 포인트 내용</div> — 최소 2개
 (B) 전문가 꿀팁 → <div class='tip-box'><strong>💡 Smileseon's Pro Tip</strong><br>꿀팁 내용</div> — 최소 2개
@@ -698,7 +700,16 @@ ${langTag}`;
     }
 
     // [CRITICAL FIX]: Remove redundant hardcoded disclaimer here because AI will generate it based on Master Guideline.
-    const res = await blogger.posts.insert({ blogId: bId, requestBody: { title: finalTitle, content: STYLE + finalHtml + '</div>', published: pTime.toISOString() } });
+    const isFuture = pTime.getTime() > Date.now() + 60000;
+    const reqBody = {
+        title: finalTitle,
+        content: STYLE + finalHtml + '</div>',
+        published: pTime.toISOString()
+    };
+    // [SCHEDULE_STABILITY]: 시간이 미래라면 구글 블로그 API 스펙에 맞춰 명시적으로 SCHEDULED 상태를 던집니다.
+    if (isFuture) reqBody.status = 'SCHEDULED';
+
+    const res = await blogger.posts.insert({ blogId: bId, isDraft: false, requestBody: reqBody });
     report(`🖋️ [포스팅 성공]: "${finalTitle}"`, 'success');
     report(`🔗 [URL]: ${res.data.url}`);
     return { title: finalTitle, url: res.data.url };
@@ -754,7 +765,7 @@ async function run() {
         const pool = config.clusters || [];
 
         const selectionPrompt = `You are an elite trend analyst. 
-        Date: ${getKST().toISOString().split('T')[0]}
+        Date: ${getKSTDateString()}
         Category: ${currentCat.name}
         Persona: ${currentCat.persona}
         
@@ -781,7 +792,7 @@ async function run() {
     const personaTag = config.selected_persona ? `\n[SPECIFIC_PERSONA]: ${config.selected_persona}` : '';
 
     const clusterPrompt = `You are a 10-year veteran blog Google SEO expert specializing in Topic Clusters.${personaTag}
-    Today's date is ${getKST().toISOString().split('T')[0]}. 
+    Today's date is ${getKSTDateString()}. 
     Niche: '${baseKeyword}'
     
     ★ MISSION: Create 5 high-performing blog post titles (1 Pillar + 4 Spokes) in ${langName} that dominate Google Search.
@@ -812,11 +823,20 @@ async function run() {
     const pillarTitle = list[0]; const spokes = list.slice(1);
     const subLinks = [];
 
-    // [Time Optimization] 스케줄 기준 시간 설정
-    let currentTime = getKST();
+    // [Time Optimization] 스케줄 기준 시간 설정 및 절대 예약 시간 체계 (UTC 기준)
+    let currentTime = new Date();
+    // [해결] 엔진 구동 시간을 넉넉히 감안하여, '무조건 첫 글부터 미래'로 지정되게 15분 뒤로 기본 세팅
+    currentTime.setMinutes(currentTime.getMinutes() + 15);
+
     if (config.schedule_time) {
         const [sh, sm] = config.schedule_time.split(':');
-        currentTime.setHours(parseInt(sh), parseInt(sm), 0, 0);
+        const kstOffsetMs = 9 * 3600000;
+        let nowKst = new Date(Date.now() + kstOffsetMs);
+        nowKst.setUTCHours(parseInt(sh), parseInt(sm), 0, 0); // KST 기준으로 시간 강제 맞춤
+        if (nowKst.getTime() < Date.now() + kstOffsetMs) {
+            nowKst.setUTCDate(nowKst.getUTCDate() + 1); // 지정 시간이 이미 지났다면 내일로 예약
+        }
+        currentTime = new Date(nowKst.getTime() - kstOffsetMs); // 다시 UTC 기준 절대 Date로 변환
     }
 
     // 2단계: Spoke(서브 글) 먼저 작성 - 실제 URL 확보
@@ -825,11 +845,11 @@ async function run() {
         if (config.random_delay) {
             const delay = Math.floor(Math.random() * 120) + 1;
             currentTime.setMinutes(currentTime.getMinutes() + delay);
-            report(`🎲 [Spoke ${i + 1}] ${delay}분 지연 예약: ${currentTime.toLocaleTimeString('ko-KR')}`);
+            report(`🎲 [Spoke ${i + 1}] ${delay}분 지연 예약: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
         } else {
-            // 랜덤 지연 미설정 시 기존 5분 간격 (첫 글은 즉시)
-            if (i > 0) currentTime.setMinutes(currentTime.getMinutes() + 5);
-            report(`⏰ [Spoke ${i + 1}] 5분 간격 예약: ${currentTime.toLocaleTimeString('ko-KR')}`);
+            // [해결] 기본 5분 간격은 엔진 실행시간(2-3분)때문에 미래가 아닌 '현재'로 꼬일 수 있으므로 20분 간격으로 지연
+            if (i > 0) currentTime.setMinutes(currentTime.getMinutes() + 20);
+            report(`⏰ [Spoke ${i + 1}] 20분 간격 예약 지정시간: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
         }
 
         const pTime = new Date(currentTime.getTime());
@@ -843,9 +863,10 @@ async function run() {
     if (config.random_delay) {
         const finalDelay = Math.floor(Math.random() * 120) + 1;
         currentTime.setMinutes(currentTime.getMinutes() + finalDelay);
-        report(`🎲 [Pillar] ${finalDelay}분 최종 지연 예약: ${currentTime.toLocaleTimeString('ko-KR')}`);
+        report(`🎲 [Pillar] ${finalDelay}분 최종 지연 예약: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
     } else {
-        currentTime.setMinutes(currentTime.getMinutes() + 5);
+        currentTime.setMinutes(currentTime.getMinutes() + 20);
+        report(`⏰ [Pillar] 최종 블로그 예약 지정시간: ${new Date(currentTime.getTime() + 9 * 3600000).toISOString().replace('T', ' ').substring(0, 16)} KST`);
     }
 
     const pillarTime = new Date(currentTime.getTime());

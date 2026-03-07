@@ -448,6 +448,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         : "<h1>(SEO Optimized Long-tail Keyword Title for Google Ranking)</h1>";
 
     const metaTitles = lang === 'ko'
+
         ? { thumb: "썸네일용 매력적인 짧은 한글 제목", pin: "핀터레스트용 세로형 매력적인 한글 제목" }
         : { thumb: "Short, eye-catching English title for thumbnail", pin: "Viral English title for Pinterest vertical pin" };
 
@@ -565,6 +566,10 @@ ${langTag}`;
     finalHtml = finalHtml.replace(/\{\s*"IMG_\d+"[\s\S]*?\}/g, '');
     finalHtml = finalHtml.replace(/```json[\s\S]*?```/gi, '');
     finalHtml = finalHtml.replace(/^\s*text\s*$/gm, '');
+
+    // [MARKDOWN_TO_HTML] 마크다운 **강조** 문법을 HTML 태그로 변환시켜 깨짐 현상 방지
+    finalHtml = finalHtml.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
     finalHtml = finalHtml.trim();
 
     let finalTitle = target;

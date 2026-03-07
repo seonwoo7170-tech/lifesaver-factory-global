@@ -640,8 +640,10 @@ async function run() {
     const blogger = google.blogger({ version: 'v3', auth });
 
     report(`⚙️ 설정을 로드했습니다. (언어: ${config.blog_lang}, 모드: ${config.post_mode})`);
+    report(`🚀 [TEST MODE]: daily_count(${config.daily_count}) 제한을 무시하고 즉시 실행합니다. (Unlimited Mode Enabled)`);
 
     report('🛡️ [Turbo Full-Mode]: 프리미엄 클러스터 구축 시작');
+
 
     let baseKeyword = config.pillar_topic || 'PC Hardware';
     const categories = {

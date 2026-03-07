@@ -395,7 +395,7 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
 
 async function genThumbnail(meta, model, ratio = '16:9') {
     try {
-        const bgUrl = await genImg(meta.bgPrompt || meta.mainTitle, model, 0, ratio);
+        const bgUrl = await genImg(meta.bgPrompt || meta.prompt || meta.mainTitle || target, model, 0, ratio);
         const bg = await loadImage(bgUrl);
         const isPin = ratio === '2:3';
         const w = isPin ? 800 : 1200;

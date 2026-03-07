@@ -473,7 +473,7 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
   "IMG_1": { "prompt": "본문 첫번째 이미지 묘사 영문 프롬프트" },
   "IMG_2": { "prompt": "본문 두번째 이미지 묘사 영문 프롬프트" },
   "IMG_3": { "prompt": "본문 세번째 이미지 묘사 영문 프롬프트" },
-  "IMG_PINTEREST": { "prompt": "Pinterest 전용 세로형(2:3) 고퀄리티 이미지 묘사 영문 프롬프트" }
+  "IMG_PINTEREST": { "mainTitle": "핀터레스트용 세로형 매력적인 한글 제목", "prompt": "Pinterest 전용 세로형(2:3) 고퀄리티 이미지 묘사 영문 프롬프트" }
 }
 [META_DATA_END]
 
@@ -596,7 +596,9 @@ ${langTag}`;
     let urlPin = '';
     try {
         const pinMeta = imgMetas['P'] || { mainTitle: target, bgPrompt: target + " premium vertical pinterest style infographic 2026" };
+        if (!pinMeta.mainTitle) pinMeta.mainTitle = target; // [TITLE_STABILITY] 영문 prompt가 제목으로 쓰이는 것 방지
         urlPin = await genThumbnail(pinMeta, model, '2:3');
+
         const pinHtml = `<div style='display:none;'><img src='${urlPin}' alt='Pinterest Optimized - ${target}'></div>\n`;
         // 무조건 최상단에 히든으로 삽입 (기존 치환자는 제거)
         finalHtml = pinHtml + finalHtml.replace(/\[\[IMG_PINTEREST\]\]/gi, '');

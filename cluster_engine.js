@@ -895,13 +895,17 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
 
         // 3. Image Hosting Service (ImgBB + Multi-rotation + Fallback)
         try {
-            const res = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
-            if (res.status === 200) {
-                const uploadedUrl = await uploadToImgHost(Buffer.from(res.data).toString('base64'));
-                return uploadedUrl;
-            }
+            const res = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 15000,
+                headers: { 'User-Agent': 'Mozilla/5.0' },
+                validateStatus: (status) => status === 200
+            });
+            const uploadedUrl = await uploadToImgHost(Buffer.from(res.data).toString('base64'));
+            return uploadedUrl || imageUrl;
         } catch (imgbbErr) {
-            report(`   ㄴ [ImageHost] 영구 저장 실패 (한도초과 등): 원본 링크 직접 사용`, 'warning');
+            const reason = imgbbErr.response ? `HTTP ${imgbbErr.response.status}` : imgbbErr.message;
+            report(`   ㄴ [Host Error] ${reason.substring(0, 30)}: 원본 링크 직접 사용`, 'warning');
             return imageUrl;
         }
         return imageUrl;
@@ -921,28 +925,59 @@ async function uploadToImgHost(base64Data) {
     const freeimageKey = (process.env.FREEIMAGE_API_KEY || '').trim();
 
     const hosts = [];
-    imgbbKeys.forEach(k => hosts.push({ name: 'ImgBB', key: k, url: 'https://api.imgbb.com/1/upload' }));
-    if (freeimageKey) hosts.push({ name: 'FreeImage', key: freeimageKey, url: 'https://freeimage.host/api/1/upload/' });
+    imgbbKeys.forEach((k, i) => hosts.push({ name: `ImgBB-${i + 1}`, key: k, url: 'https://api.imgbb.com/1/upload', param: 'image' }));
+    if (freeimageKey && freeimageKey.length > 5) {
+        hosts.push({ name: 'FreeImage', key: freeimageKey, url: 'https://freeimage.host/api/1/upload/', param: 'source' });
+    }
 
-    if (hosts.length === 0) throw new Error("이미지 호스팅 키(IMGBB_API_KEY)가 없습니다.");
+    // [ULTIMATE_SHIELD]: Telegraph (No Key, Permanent, No Limit)
+    hosts.push({ name: 'Telegraph(Backup)', key: '', url: 'https://telegra.ph/upload', param: 'file' });
+
+    if (hosts.length === 0) throw new Error("이미지 호스팅 시스템 구성 실패");
+    report(`   ㄴ [Host Check] 총 ${hosts.length}개의 호스트 경로 확보 (무적 백업 포함)`);
 
     for (const host of hosts) {
         try {
             const form = new FormData();
-            form.append('image', base64Data);
-            const ir = await axios.post(`${host.url}?key=${host.key}`, form, { headers: form.getHeaders(), timeout: 20000 });
-            if (ir.data?.data?.url) return ir.data.data.url;
+            if (host.key) form.append('key', host.key);
+
+            if (host.name.includes('Telegraph')) {
+                form.append('file', Buffer.from(base64Data, 'base64'), { filename: 'image.jpg' });
+            } else {
+                form.append('action', 'upload');
+                form.append('format', 'json');
+                form.append(host.param, base64Data);
+            }
+
+            const ir = await axios.post(host.url, form, {
+                headers: form.getHeaders(),
+                maxContentLength: Infinity,
+                maxBodyLength: Infinity,
+                timeout: 40000
+            });
+
+            let resultUrl = '';
+            if (host.name.includes('Telegraph')) {
+                if (ir.data?.[0]?.src) resultUrl = 'https://telegra.ph' + ir.data[0].src;
+            } else {
+                resultUrl = ir.data?.data?.url || ir.data?.image?.url;
+            }
+
+            if (resultUrl) {
+                report(`   ㄴ [${host.name}] 업로드 성공! ✅`);
+                return resultUrl;
+            }
         } catch (e) {
-            const errRes = e.response?.data?.error?.message || e.message;
-            report(`   ㄴ [${host.name}] 업로드 차단됨 (${errRes.substring(0, 30)}): 다음 경로 시도...`, 'warning');
+            const errRes = (e.response?.data?.error?.message || e.message).substring(0, 35);
+            report(`   ㄴ [${host.name}] 시도 실패 (${errRes}): 다음 시도...`, 'warning');
         }
     }
-    throw new Error("모든 이미지 호스팅 시도가 실패했습니다.");
+    return null; // 모든 시도 실패 시 상위에서 원본 링크 사용 유도
 }
 
 async function genThumbnail(meta, model, ratio = '16:9') {
     try {
-        const bgUrl = await genImg(meta.bgPrompt || meta.prompt || meta.mainTitle || target, model, 0, ratio);
+        const bgUrl = await genImg(meta.bgPrompt || meta.prompt || meta.mainTitle || 'premium technology abstract', model, 0, ratio);
         const bg = await loadImage(bgUrl);
         const isPin = ratio === '2:3';
         const w = isPin ? 800 : 1200;
@@ -1017,6 +1052,7 @@ async function genThumbnail(meta, model, ratio = '16:9') {
 
         // [IMAGE_HOST_ROTATION] 통합 업로드 로직 사용
         const uploadedUrl = await uploadToImgHost(cv.toBuffer('image/jpeg').toString('base64'));
+        if (!uploadedUrl) throw new Error("이미지 호스팅 서버 응답 없음");
         return uploadedUrl;
     } catch (e) {
         report(`⚠️ 썸네일 합성/업로드 실패 (${e.message}): 원본 이미지로 대체합니다.`, 'warning');
@@ -1093,8 +1129,14 @@ ${lang === 'ko' ? '정확히 아래 포맷에 맞춰서 한 번에 모든 글을
 
 [META_DATA_START]
 {
-  "IMG_0": { "mainTitle": "${metaTitles.thumb}", "bgPrompt": "English prompt for thumbnail" },
-  "IMG_PINTEREST": { "mainTitle": "${metaTitles.pin}", "prompt": "English prompt for Pinterest" }
+  "IMG_0": { 
+    "mainTitle": "(각 글의 주제에 맞는 매력적인 15자 내외의 한국어(또는 영어) 썸네일 제목)", 
+    "bgPrompt": "(해당 섹션의 분위기를 극대화할 수 있는 영문 상세 이미지 프롬프트. 예: Cyberpunk city at night, high detail 등)" 
+  },
+  "IMG_PINTEREST": { 
+    "mainTitle": "(핀터레스트용 제목)", 
+    "prompt": "(핀터레스트용 세로형 이미지 영문 프롬프트)" 
+  }
 }
 [META_DATA_END]
 

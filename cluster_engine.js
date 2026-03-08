@@ -793,7 +793,7 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
         // 1. Kie.ai (Premium Image Generation)
         if (kieKey && kieKey.length > 5) {
             try {
-                report(`   ㄴ [Kie.ai] z-image 호출 중 (이미지 생성)...`);
+                report(`   ㄴ [Kie.ai] z-image 호출 중...`);
                 const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
                     model: 'z-image',
                     input: { prompt: revised + ', high-end, editorial photography, 8k', aspect_ratio: ratio }
@@ -814,60 +814,36 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
                         if (state === 'fail' || state === 'failed') break;
                     }
                 }
-            } catch (e) { report(`   ㄴ [Kie.ai] 중단 (${e.message}): 다음 엔진 전환`, 'warning'); }
+            } catch (e) { report(`   ㄴ [Kie.ai] 중단 (${e.message}): 차선책(Stock Photo)으로 전환`, 'warning'); }
         }
 
-        // 2. Pollinations.ai (FLUX Fallback)
+        // 2. [GA Friendly] Keyword-based Stock Photo Fallback (Pollinations 제거)
         if (!imageUrl) {
             const [w, h] = ratio === '2:3' ? [800, 1200] : [1080, 720];
-            imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(revised)}?width=${w}&height=${h}&seed=${Math.floor(Math.random() * 99999)}&nologo=true&enhance=true`;
+            // 키워드 추출 (최대한 주제에 근접하게)
+            const keywords = prompt.replace(/[^a-zA-Z\s]/g, '').split(' ').filter(v => v.length > 3).slice(0, 3).join(',');
+            imageUrl = `https://loremflickr.com/${w}/${h}/${keywords || 'technology,ai'}?lock=${Math.floor(Math.random() * 1000) + idx}`;
+            report(`   ㄴ [Stock] GA 안전 모드: 키워드 기반 이미지 사용 (${keywords || 'ai'})`);
         }
 
-        // 3. ImgBB Upload (영구 보관)
-        const res = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } });
-        if (res.status !== 200) throw new Error("Image download failed");
-
-        const form = new FormData();
-        form.append('image', Buffer.from(res.data).toString('base64'));
-        const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
-        return ir.data.data.url;
-    } catch (e) {
+        // 3. ImgBB Upload (영구 보관 시도)
         try {
-            // Level 2 Fallback: High quality stock photo
-            const seed = prompt.replace(/[^a-zA-Z]/g, '').substring(0, 10) + idx;
-            const fallbackUrl = `https://picsum.photos/seed/${seed}/1080/720`;
-            const fbRes = await axios.get(fallbackUrl, { responseType: 'arraybuffer', timeout: 5000 });
-            const form = new FormData();
-            form.append('image', Buffer.from(fbRes.data).toString('base64'));
-            const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
-            return ir.data.data.url;
-        } catch (fallbackErr) {
-            // Level 3 Fallback: Canvas Error Image
-            try {
-                const cv = createCanvas(1080, 720);
-                const ctx = cv.getContext('2d');
-                const h = Math.floor(Math.random() * 360);
-                const grad = ctx.createLinearGradient(0, 0, 1080, 720);
-                grad.addColorStop(0, `hsl(${h}, 70%, 40%)`);
-                grad.addColorStop(1, `hsl(${h + 60}, 70%, 20%)`);
-                ctx.fillStyle = grad;
-                ctx.fillRect(0, 0, 1080, 720);
-
-                ctx.fillStyle = 'rgba(255,255,255,0.05)';
-                for (let i = 0; i < 8; i++) {
-                    ctx.beginPath();
-                    ctx.arc(Math.random() * 1080, Math.random() * 720, Math.random() * 300 + 100, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.fillStyle = '#fff'; ctx.textAlign = 'center';
-                ctx.font = 'bold 45px sans-serif';
-                ctx.fillText('Dynamic Display Image', 540, 360);
+            const res = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } });
+            if (res.status === 200) {
                 const form = new FormData();
-                form.append('image', cv.toBuffer('image/jpeg').toString('base64'));
-                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
+                form.append('image', Buffer.from(res.data).toString('base64'));
+                const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders(), timeout: 15000 });
                 return ir.data.data.url;
-            } catch (e) { return ''; }
+            }
+        } catch (imgbbErr) {
+            report(`   ㄴ [ImgBB] 저장 실패 (한도초과 등): 원본 링크 직접 사용`, 'warning');
+            return imageUrl;
         }
+        return imageUrl;
+    } catch (e) {
+        // Final Fallback: Random Tech Image
+        const seed = Math.floor(Math.random() * 9999);
+        return `https://picsum.photos/seed/${seed}/1080/720`;
     }
 }
 
@@ -948,9 +924,10 @@ async function genThumbnail(meta, model, ratio = '16:9') {
 
         const form = new FormData();
         form.append('image', cv.toBuffer('image/jpeg').toString('base64'));
-        const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders() });
+        const ir = await axios.post('https://api.imgbb.com/1/upload?key=' + process.env.IMGBB_API_KEY, form, { headers: form.getHeaders(), timeout: 10000 });
         return ir.data.data.url;
     } catch (e) {
+        report(`⚠️ 썸네일 합성 실패 (${e.message}): 원본 이미지로 대체합니다.`, 'warning');
         return await genImg(meta.mainTitle || meta.prompt, model, 0, ratio);
     }
 }

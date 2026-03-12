@@ -885,13 +885,13 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
                 const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
                     model: 'z-image',
                     input: { prompt: cleanPrompt + ', masterpiece, photorealistic, 8k, highly detailed', aspect_ratio: ratio }
-                }, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 20000 });
+                }, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 40000 }); // 타임아웃 40초로 연장
 
                 const tid = cr.data.taskId || cr.data.data?.taskId;
                 if (tid) {
-                    for (let a = 0; a < 15; a++) {
+                    for (let a = 0; a < 20; a++) { // 최대 120초까지 대기
                         await new Promise(r => setTimeout(r, 6000));
-                        const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 10000 });
+                        const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 20000 });
                         const state = pr.data.state || pr.data.data?.state;
                         if (state === 'success') {
                             const resData = pr.data.resultJson || pr.data.data?.resultJson;
@@ -902,18 +902,24 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
                         if (state === 'fail' || state === 'failed') break;
                     }
                 }
-            } catch (e) { report(`   ㄴ [Kie.ai] 중단 (${e.message}): 차선책(Stock Photo)으로 전환`, 'warning'); }
+            } catch (e) { report(`   ㄴ [Kie.ai] 중단 (${e.message.substring(0, 30)}): 차선책(Premium Stock)으로 전환`, 'warning'); }
         }
 
-        // 2. [RELEVANCE_FIX] Improved Stock Photo Fallback
+        // 2. [RELEVANCE_FIX] Improved Stock Photo Fallback (Unsplash 기반으로 교체하여 고양이 방지)
         if (!imageUrl) {
-            const [w, h] = ratio === '2:3' ? [800, 1200] : [1080, 720];
-            const tags = aiData.keywords || 'technology,innovation';
-            const randomSeed = Math.floor(Math.random() * 1000000) + (idx * 137);
+            const tags = (aiData.keywords || 'technology,innovation,business').replace(/\s/g, '');
+            const seed = Math.floor(Math.random() * 1000000);
 
-            // LoremFlickr는 태그 기반이므로 AI가 추출한 정확한 영문 태그를 사용
-            imageUrl = `https://loremflickr.com/${w}/${h}/${tags.replace(/\s/g, '')}?lock=${randomSeed}`;
-            report(`   ㄴ [Stock] AI 키워드 기반 이미지 사용 (Tags: ${tags}, Seed: ${randomSeed})`);
+            // LoremFlickr 대신 Unsplash Source 스타일의 고품질 폴백 사용 (고양이 대신 주제별 맞춤 이미지)
+            imageUrl = `https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=1080&auto=format&fit=crop`; // 기본값: Tech Office
+
+            // 키워드별 대표 Unsplash 이미지 매핑 (실속형)
+            if (tags.includes('code') || tags.includes('software')) imageUrl = 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1080';
+            else if (tags.includes('cooking') || tags.includes('food')) imageUrl = 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1080';
+            else if (tags.includes('travel') || tags.includes('mountain')) imageUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1080';
+            else if (tags.includes('money') || tags.includes('crypto')) imageUrl = 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?q=80&w=1080';
+
+            report(`   ㄴ [Stock] Unsplash 기반 주제별 이미지 사용 (Keywords: ${tags})`);
         }
 
         // 3. Image Hosting Service (ImgBB + Multi-rotation + Fallback)
@@ -931,11 +937,9 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
             report(`   ㄴ [Host Error] ${reason.substring(0, 30)}: 원본 링크 직접 사용`, 'warning');
             return imageUrl;
         }
-        return imageUrl;
     } catch (e) {
-        // Final Fallback: Random Tech Image
-        const seed = Math.floor(Math.random() * 9999);
-        return `https://picsum.photos/seed/${seed}/1080/720`;
+        // Final Fallback: Stable Unsplash Tech Photo (절대 실패하지 않는 안정적 경로)
+        return `https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?q=80&w=1080&auto=format&fit=crop`;
     }
 }
 
@@ -1006,9 +1010,9 @@ async function genThumbnail(meta, model, idx = 0, ratio = '16:9') {
         const imgRes = await axios.get(bgUrl, { responseType: 'arraybuffer', timeout: 15000 });
         const bg = await loadImage(Buffer.from(imgRes.data));
 
-        const isPin = ratio === '2:3';
-        const w = isPin ? 800 : 1200;
-        const h = isPin ? 1200 : 630;
+        const isPin = ratio === '9:16';
+        const w = isPin ? 1080 : 1200;
+        const h = isPin ? 1920 : 630;
         const cv = createCanvas(w, h);
         const ctx = cv.getContext('2d');
 
@@ -1126,36 +1130,30 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
             const links = extraLinks.map((l, lid) => `[서브글 ${lid + 1}] 제목: ${l.title}\n[복사해서 본문에 넣을 HTML 코드]:\n<div style='margin: 40px 0; border: 1px solid #e5e7eb; border-radius:12px; padding:20px;'><h4 style='margin-top:0; color:#1e293b; font-size:18px;'>📍 Related Topic: ${l.title}</h4><p style='font-size:15px; color:#475569; line-height:1.6;'>여기에 [서브글 ${lid + 1}]의 핵심 내용을 SEO를 고려하여 3~4줄로 흥미진진하게 요약해서 독자의 클릭을 유도하는 글을 직접 작성하세요.</p><a href='${l.url}' class='cluster-btn'>${btnText}</a></div>`).join('\n\n');
 
             const contextPrompt = isKo
-                ? `[INTERNAL_LINK_PUNITIVE_MISSION]: 이 포스팅은 메인 허브(Pillar) 글입니다. 
-                ★ 절대 규칙: 
-                1. 본문을 풍성하게 4~8개의 섹션(H2)으로 구성하세요.
-                2. 아래 제공된 <서브글> 리스트를 기반으로, **본문의 주요 섹션 중 4개를 선정**하여 각 섹션의 마지막 부분에 해당 서브글의 내용을 요약하고 제공된 버튼 코드를 반드시 삽입하세요.
-                3. 섹션의 순서에 맞춰 서브글 1, 2, 3, 4를 차례대로 배치해야 합니다.
-                4. ⚠️ 엉뚱한 링크를 만들지 마세요! 아래 리스트에 있는 **[복사해서 본문에 넣을 HTML 코드]**를 그대로 복사하고, 그 안의 '요약'부분만 직접 집필하세요.`
-                : `[INTERNAL_LINK_PUNITIVE_MISSION]: This is a Pillar post. 
-                ★ STRICT RULE: 
-                1. You must organize the body into 4-8 rich sections (H2).
-                2. Based on the provided sub-articles, **select 4 major sections** and at the end of each, summarize the relevant sub-article and insert the provided button code.
-                3. Place Sub-articles 1, 2, 3, and 4 in sequential order within your chosen sections.
-                4. ⚠️ DO NOT generate your own links! Copy the provided **[복사해서 본문에 넣을 HTML 코드]** and only write the 'summary' part inside it.`;
+                ? `[INTERNAL_LINK_MISSION]: 이 포스팅은 메인 허브(Pillar) 글입니다. 
+                ★ 본문에 아래 ${extraLinks.length}개의 관련 서브글을 반드시 링크해야 합니다.
+                1. 본문의 주요 섹션 중 4개를 선정하여 각 섹션 마지막에 제공된 버튼 코드를 삽입하세요.
+                2. 코드 안의 '요약' 부분만 직접 SEO에 유리하게 집필하세요.`
+                : `[INTERNAL_LINK_MISSION]: This is a Pillar post. 
+                ★ You MUST link ${extraLinks.length} related sub-articles in the body.
+                1. Select 4 major sections and insert the provided button codes at the end of each.
+                2. Write the 'summary' part inside the code yourself to be SEO-friendly and engaging.`;
             inBodyLinkContext = `\n${contextPrompt}\n\n[서브글 목록 및 주입용 코드]\n${links}`;
         } else {
             // [SPOKE_STRATEGY]: 본문 내 자연스러운 맥락 1회 삽입
             const bestLink = extraLinks[0]; // 가장 관련성 높은 1순위 링크
             const contextPrompt = isKo
                 ? `[INTERNAL_LINK_SMART_PLACEMENT]: 이 포스팅은 세부 가이드(Spoke) 글입니다.
-                ★ 규칙: 
-                1. 본문 작성 중 가장 맥락이 자연스러운 지점을 찾아 딱 1개 섹션에서 아래 제공된 관련 글을 언급하세요.
-                2. "이 내용을 더 자세히 알아보려면 ~을 참고하세요"와 같은 전문가의 추천 멘트를 소제목(H3) 혹은 본문 중간에 자연스럽게 녹여내세요.
-                3. 아래 버튼 코드를 해당 위치에 삽입하세요:
+                ★ 본문 중간에 자연스럽게 아래 관련 글을 언급하고 링크 박스를 삽입하세요.
+                👉 관련 글: ${bestLink.title}
+                👉 삽입할 코드:
                 <div style='margin: 30px 0; padding:15px; background:#f0f9ff; border-radius:10px;'>
                   <a href='${bestLink.url}' style='text-decoration:none; color:#0369a1; font-weight:700;'>👉 함께 읽어볼 만한 글: ${bestLink.title}</a>
                 </div>`
                 : `[INTERNAL_LINK_SMART_PLACEMENT]: This is a Spoke post.
-                ★ RULE:
-                1. Find the most natural context in the body and reference the following related post in exactly ONE section.
-                2. Use expert phrasing like "For more details on this topic, check out..." to naturally guide the reader.
-                3. Insert the following code at that location:
+                ★ You MUST naturally mention and insert the following link box in the middle of the body.
+                👉 Related Post: ${bestLink.title}
+                👉 Code to Insert:
                 <div style='margin: 30px 0; padding:15px; background:#f0f9ff; border-radius:10px;'>
                   <a href='${bestLink.url}' style='text-decoration:none; color:#0369a1; font-weight:700;'>👉 Recommended Reading: ${bestLink.title}</a>
                 </div>`;
@@ -1181,13 +1179,18 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
     const baseGuideline = lang === 'ko' ? MASTER_GUIDELINE : MASTER_GUIDELINE_EN;
 
     // MISSION 분량 확보를 위한 강력한 지침 추가 (3중 언어 잠금)
-    const m1Prompt = `[CRITICAL_LANGUAGE_LOCK]: YOU MUST WRITE EVERYTHING IN ${lang === 'ko' ? 'KOREAN (한국어)' : 'ENGLISH'}.
-    ${lang === 'ko' ? '★ 본 블로그는 한국어 전용입니다. 모든 내용을 원어민 수준의 한국어로 작성하세요.' : '★ This blog is for English readers only. Write everything in native-level English.'}
-    ${lang === 'ko' ? '★ 데이터가 영어더라도 반드시 한국어로 번역하고 요약하여 집필하세요.' : '★ Synthesis results in English always.'}
+    const m1Prompt = `[CRITICAL_LANGUAGE_LOCK]: YOU MUST WRITE EVERYTHING (INCLUDING ALL METADATA) IN ${lang === 'ko' ? 'KOREAN (한국어)' : 'ENGLISH'}.
+    ${lang === 'ko' ? '★ 문체 원칙: 정중하고 친근한 **구어체(해요체)**를 100% 사용하세요. (~다. 대신 ~해요, ~했죠, ~인가요? 등을 사용)' : '★ Tone: Use a professional yet conversational human style.'}
+    ${lang === 'ko' ? '★ 본 블로그는 한국어 전용입니다. 독자와 직접 대화하듯 생동감 있게 작성하세요.' : '★ This blog is for English readers only. Write everything in native-level English.'}
+    ${lang === 'ko' ? '★ AI 특유의 딱딱한 설명문투를 버리고, 개인 블로거의 개성과 인간미가 느껴지는 말투를 유지하세요.' : '★ Avoid AI robotic tone. Maintain a distinct human blogger personality.'}
+    
+    ★ [METADATA_LANGUAGE_DISCIPLINE]: 
+    All textual values in the [META_DATA_START] block (especially 'mainTitle') MUST be written in ${lang === 'ko' ? 'KOREAN' : 'ENGLISH'}. 
+    DO NOT use Korean in metadata for English posts.
     
     ` + baseGuideline + `
 [MISSION: FULL POST GENERATION] 
-${lang === 'ko' ? '★ 반드시 한국어로 작성하세요! (MUST WRITE IN KOREAN)' : '★ MUST WRITE IN ENGLISH'}
+${lang === 'ko' ? '★ 반드시 한국어로 작성하세요! 문체는 부드러운 구어체여야 합니다.' : '★ MUST WRITE IN ENGLISH'}
 ${lang === 'ko' ? '정확히 아래 포맷에 맞춰서 한 번에 모든 글을 작성해야 합니다. 전체 본문은 반드시 4~8개의 메인 섹션(H2)으로 풍성하게 구성하세요. 분량은 6,000자~8,000자 이상 확보하세요.' : 'Follow the format below exactly and write 4-8 sections. Length 6,000 to 8,000+ characters.'}
 
 [필수 디자인 컴포넌트 - 반드시 본문에 포함하세요]:
@@ -1205,11 +1208,11 @@ ${lang === 'ko' ? '정확히 아래 포맷에 맞춰서 한 번에 모든 글을
 [META_DATA_START]
 {
   "IMG_0": { 
-    "mainTitle": "${lang === 'ko' ? '글 주제를 관통하는 핵심 요약 제목 (한글 15자 내외)' : 'A catchy summary title that captures the essence of the post (English, around 8-10 words)'}", 
+    "mainTitle": "${metaTitles.thumb}", 
     "bgPrompt": "A unique, highly detailed cinematic background showing [SPECIFIC ARTISTIC SCENE RELATED TO THIS POST TOPIC], 8k, photorealistic" 
   },
   "IMG_PINTEREST": { 
-    "mainTitle": "${lang === 'ko' ? '핀터레스트용 세로형 클릭 유도 문구' : 'Eye-catching vertical Pinterest headline to drive clicks'}", 
+    "mainTitle": "${metaTitles.pin}", 
     "prompt": "Vertical orientation Pinterest pin style graphic showing [UNIQUE VISUAL CONCEPT FOR THIS TOPIC]" 
   }
 }
@@ -1312,6 +1315,17 @@ ${langTag}`;
     // [MARKDOWN_TO_HTML] 마크다운 **강조** 문법 변환
     finalHtml = finalHtml.replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>');
 
+    // [LIST_CONVERSION] 불균형한 마크다운 리스트(* , - )를 정식 HTML 리스트로 변환
+    // 한 줄 전체가 * 또는 -로 시작하는 경우를 찾아서 <li>로 변환합니다.
+    if (finalHtml.includes('\n* ') || finalHtml.includes('\n- ')) {
+        finalHtml = finalHtml.replace(/^[*+-]\s+(.*)$/gm, '<li>$1</li>');
+        // 연속된 <li>들을 <ul>로 감쌉니다.
+        finalHtml = finalHtml.replace(/(<li>.*<\/li>(?:\s*<li>.*<\/li>)*)/g, '<ul style="margin: 20px 0; line-height: 1.8;">$1</ul>');
+    }
+
+    // [STAR_CLEANUP] 본문에 의미 없이 남은 별표 쪼가리들을 소거합니다.
+    finalHtml = finalHtml.replace(/\s+\*\s+/g, ' ');
+
     // [FINAL_PURIFICATION]: 특수문자 코드값 깨짐 및 찌꺼기 완전 소거
     finalHtml = finalHtml.replace(/&#\d+;/g, ''); // &#9654; 같은 수치형 엔티티 제거
     finalHtml = finalHtml.replace(/&[a-z]+;/gi, (match) => {
@@ -1355,8 +1369,8 @@ ${langTag}`;
     let urlPin = '';
     try {
         const pinMeta = imgMetas['P'] || { mainTitle: target, bgPrompt: target + " premium vertical pinterest style infographic 2026" };
-        if (!pinMeta.mainTitle) pinMeta.mainTitle = target; // [TITLE_STABILITY] 영문 prompt가 제목으로 쓰이는 것 방지
-        urlPin = await genThumbnail(pinMeta, model, idx + 10, '2:3');
+        if (!pinMeta.mainTitle) pinMeta.mainTitle = target;
+        urlPin = await genThumbnail(pinMeta, model, idx + 10, '9:16');
 
         const pinHtml = `<div style='display:none;'><img src='${urlPin}' alt='Pinterest Optimized - ${target}'></div>\n`;
         // 무조건 최상단에 히든으로 삽입 (기존 치환자는 제거)
@@ -1573,13 +1587,16 @@ async function run() {
         report(`🔍 [연관 글 발굴]: 블로그 전체에서 '${cleanQuery}' 내역 검색 중...`);
         const blogSearchRes = await blogger.posts.search({ blogId: config.blog_id, q: cleanQuery });
 
-        if (blogSearchRes.data.items) {
+        if (blogSearchRes.data.items && blogSearchRes.data.items.length > 0) {
             searchRelatedLinks = blogSearchRes.data.items.map(item => ({ title: item.title, url: item.url }));
             report(`   ㄴ [발굴 성공]: 과거 글 ${searchRelatedLinks.length}개를 연관 링크 후보로 확보했습니다.`);
         } else {
             // 검색 결과가 없으면 최근 글이라도 백업으로 가져옴
             const fallbackRes = await blogger.posts.list({ blogId: config.blog_id, maxResults: 10, status: 'live' });
-            if (fallbackRes.data.items) searchRelatedLinks = fallbackRes.data.items.map(item => ({ title: item.title, url: item.url }));
+            if (fallbackRes.data.items && fallbackRes.data.items.length > 0) {
+                searchRelatedLinks = fallbackRes.data.items.map(item => ({ title: item.title, url: item.url }));
+                report(`   ㄴ [백업 로드]: 최근 글 ${searchRelatedLinks.length}개를 후보로 사용합니다.`);
+            }
         }
     } catch (e) { report('⚠️ 블로그 내 검색 실패: ' + e.message, 'warning'); }
 

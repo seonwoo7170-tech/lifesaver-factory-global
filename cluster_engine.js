@@ -908,18 +908,15 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
         // 2. [RELEVANCE_FIX] Improved Stock Photo Fallback (Unsplash 기반으로 교체하여 고양이 방지)
         if (!imageUrl) {
             const tags = (aiData.keywords || 'technology,innovation,business').replace(/\s/g, '');
-            const seed = Math.floor(Math.random() * 1000000);
 
-            // LoremFlickr 대신 Unsplash Source 스타일의 고품질 폴백 사용 (고양이 대신 주제별 맞춤 이미지)
+            // LoremFlickr(고양이 원인)를 완전히 배제하고 Unsplash 고화질 경로만 사용
             imageUrl = `https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=1080&auto=format&fit=crop`; // 기본값: Tech Office
 
-            // 키워드별 대표 Unsplash 이미지 매핑 (실속형)
             if (tags.includes('code') || tags.includes('software')) imageUrl = 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1080';
             else if (tags.includes('cooking') || tags.includes('food')) imageUrl = 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1080';
-            else if (tags.includes('travel') || tags.includes('mountain')) imageUrl = 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=1080';
             else if (tags.includes('money') || tags.includes('crypto')) imageUrl = 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?q=80&w=1080';
 
-            report(`   ㄴ [Stock] Unsplash 기반 주제별 이미지 사용 (Keywords: ${tags})`);
+            report(`   ㄴ [Stock Fallback] Unsplash 전문 이미지 매칭 (Keywords: ${tags})`);
         }
 
         // 3. Image Hosting Service (ImgBB + Multi-rotation + Fallback)
@@ -1171,9 +1168,8 @@ async function writeAndPost(model, target, lang, blogger, bId, pTime, extraLinks
         : "<h1>(SEO Optimized Long-tail Keyword Title for Google Ranking)</h1>";
 
     const metaTitles = lang === 'ko'
-
-        ? { thumb: "썸네일용 매력적인 짧은 한글 제목", pin: "핀터레스트용 세로형 매력적인 한글 제목" }
-        : { thumb: "Short, eye-catching English title for thumbnail", pin: "Viral English title for Pinterest vertical pin" };
+        ? { thumb: "KOREAN_CATCHY_SEO_TITLE", pin: "KOREAN_PINTEREST_VIRAL_TITLE" }
+        : { thumb: "ENGLISH_CATCHY_SEO_TITLE", pin: "ENGLISH_PINTEREST_VIRAL_TITLE" };
 
     // MASTER 가이드라인 언어별 선택 (영문 블로그 시 한국어 지침 0%로 제거)
     const baseGuideline = lang === 'ko' ? MASTER_GUIDELINE : MASTER_GUIDELINE_EN;
@@ -1335,49 +1331,48 @@ ${langTag}`;
 
     finalHtml = finalHtml.trim();
 
+    // === [STEP 2] 확정된 제목 추출 및 이미지 생성 시작 (글 작성이 끝난 후 수행) ===
     let finalTitle = target;
     const h1Match = finalHtml.match(/<h1.*?>([\s\S]*?)<\/h1>/i);
     if (h1Match) finalTitle = h1Match[1].replace(/<[^>]+>/g, '').trim();
     finalHtml = finalHtml.replace(/<h1.*?>[\s\S]*?<\/h1>/gi, '').trim();
 
+    report(`🖼️ [이미지 생성]: 확정 제목("${finalTitle}") 기반으로 시각 요소 구축 시작...`);
+
+    // 1. 메인 썸네일 (IMG_0)
     if (m0) {
-        const url0 = await genThumbnail(m0, model, idx);
-        finalHtml = `<img src='${url0}' alt='${m0.mainTitle}' style='width:100%; border-radius:15px; margin-bottom:40px;'>` + finalHtml.replace(/\s*\[\[IMG_0\]\]\s*/gi, '');
+        // AI가 생성한 메타데이터가 한글일 경우를 대비해 finalTitle을 우선 사용
+        const thumbTitle = (lang === 'en' && /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(m0.mainTitle)) ? finalTitle : m0.mainTitle;
+        const url0 = await genThumbnail({ ...m0, mainTitle: thumbTitle || finalTitle }, model, idx);
+        finalHtml = `<img src='${url0}' alt='${finalTitle}' style='width:100%; border-radius:15px; margin-bottom:40px;'>` + finalHtml.replace(/\s*\[\[IMG_0\]\]\s*/gi, '');
     }
+
+    // 2. 본문 이미지 (IMG_1~4)
     for (let i = 1; i <= 4; i++) {
         const reg = new RegExp(`\\s*\\[\\[IMG_${i}\\]\\]\\s*`, 'gi');
         if (reg.test(finalHtml)) {
-            const urlI = await genImg((imgMetas[i] || {}).prompt || target, model, i);
-            finalHtml = finalHtml.replace(reg, `<div style='text-align:center; margin:35px 0;'><img src='${urlI}' alt='${target}' style='width:100%; border-radius:12px;'></div>`);
+            const imgPrompt = (imgMetas[i] && imgMetas[i].prompt) ? imgMetas[i].prompt : finalTitle;
+            const urlI = await genImg(imgPrompt, model, i);
+            finalHtml = finalHtml.replace(reg, `<div style='text-align:center; margin:35px 0;'><img src='${urlI}' alt='${finalTitle}' style='width:100%; border-radius:12px;'></div>`);
         } else {
-            // 만약 치환자가 없다면 H2 태그 위에 강제로 이미지를 주입
-            const urlI = await genImg((imgMetas[i] || {}).prompt || target, model, i);
-            let injected = false;
+            // 치환자가 없어도 H2 사이에 적절히 배분하여 주입
+            const urlI = await genImg(finalTitle, model, i);
             let count = 0;
             finalHtml = finalHtml.replace(/<h2/gi, (match) => {
                 count++;
-                if (count === (i * 2)) {
-                    injected = true;
-                    return `<div style='text-align:center; margin:35px 0;'><img src='${urlI}' alt='${target}' style='width:100%; border-radius:12px;'></div>\n<h2`;
-                }
+                if (count === (i * 2)) return `<div style='text-align:center; margin:35px 0;'><img src='${urlI}' alt='${finalTitle}' style='width:100%; border-radius:12px;'></div>\n<h2`;
                 return match;
             });
         }
     }
 
-    // === [IMG_PINTEREST] 처리 (2:3 수직 이미지 - 최상단 히든 썸네일) ===
+    // 3. 핀터레스트 히든 이미지 (최고 비율 9:16)
     let urlPin = '';
     try {
-        const pinMeta = imgMetas['P'] || { mainTitle: target, bgPrompt: target + " premium vertical pinterest style infographic 2026" };
-        if (!pinMeta.mainTitle) pinMeta.mainTitle = target;
-        urlPin = await genThumbnail(pinMeta, model, idx + 10, '9:16');
-
-        const pinHtml = `<div style='display:none;'><img src='${urlPin}' alt='Pinterest Optimized - ${target}'></div>\n`;
-        // 무조건 최상단에 히든으로 삽입 (기존 치환자는 제거)
-        finalHtml = pinHtml + finalHtml.replace(/\[\[IMG_PINTEREST\]\]/gi, '');
-    } catch (pinErr) {
-        report('⚠️ 핀터레스트 썸네일 생성 실패: ' + pinErr.message, 'warning');
-    }
+        const pinTitle = (lang === 'en' && imgMetas['P'] && /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(imgMetas['P'].mainTitle)) ? finalTitle : (imgMetas['P']?.mainTitle || finalTitle);
+        urlPin = await genThumbnail({ mainTitle: pinTitle, bgPrompt: finalTitle + " premium vertical infographic" }, model, idx + 10, '9:16');
+        finalHtml = `<div style='display:none;'><img src='${urlPin}' alt='Pinterest - ${finalTitle}'></div>\n` + finalHtml.replace(/\[\[IMG_PINTEREST\]\]/gi, '');
+    } catch (e) { report('⚠️ 핀터레스트 썸네일 생략: ' + e.message, 'warning'); }
 
     // === [LINK_STABILITY] 메인글 하단에 서브글 링크 목록 자동 생성 (안전장치) ===
     if (extraLinks.length > 0) {

@@ -12,10 +12,12 @@ const localGmarket = path.join(fontDir, 'GmarketSansBold.ttf');
 const localPretendard = path.join(fontDir, 'Pretendard-Black.ttf');
 
 const fontPaths = [
-    { path: localGmarket, family: 'GmarketSans' },
-    { path: localPretendard, family: 'Pretendard' },
-    { path: path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'malgunbd.ttf'), family: 'VUE_K_Font' },
-    { path: '/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf', family: 'VUE_K_Font' }
+    { path: path.join(fontDir, 'GmarketSansBold.ttf'), family: 'GmarketSans', weight: 'bold' },
+    { path: path.join(fontDir, 'Pretendard-Black.ttf'), family: 'Pretendard', weight: 'bold' },
+    { path: path.join(fontDir, 'GmarketBackup.ttf'), family: 'GmarketSans', weight: 'bold' },
+    { path: path.join(fontDir, 'BlackHanSans.ttf'), family: 'VUE_K_Font', weight: 'bold' },
+    { path: path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'malgunbd.ttf'), family: 'VUE_K_Font', weight: 'bold' },
+    { path: '/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf', family: 'VUE_K_Font', weight: 'bold' }
 ];
 
 let activeFont = 'sans-serif';
@@ -24,10 +26,11 @@ let fontFound = false;
 for (const fontInfo of fontPaths) {
     if (fs.existsSync(fontInfo.path)) {
         try {
-            registerFont(fontInfo.path, { family: fontInfo.family });
+            // [PLATINUM_FIX]: weight를 명시적으로 등록해야 ctx.font = 'bold ...'가 작동함
+            registerFont(fontInfo.path, { family: fontInfo.family, weight: fontInfo.weight || 'normal' });
             activeFont = fontInfo.family;
             fontFound = true;
-            console.log(`✅ 폰트 등록 완료: ${path.basename(fontInfo.path)} (Family: ${fontInfo.family})`);
+            console.log(`✅ 폰트 등록 완료: ${path.basename(fontInfo.path)} (Family: ${fontInfo.family}, Weight: ${fontInfo.weight})`);
             break;
         } catch (e) {
             console.log(`⚠️ 폰트 등록 실패 (${path.basename(fontInfo.path)}): ${e.message}`);
@@ -35,10 +38,10 @@ for (const fontInfo of fontPaths) {
     }
 }
 
-
 if (!fontFound) {
-    console.log('🚨 사용 가능한 폰트를 찾지 못했습니다. 시스템 기본 폰트를 시도합니다.');
+    console.log('🚨 사용 가능한 로컬 폰트를 찾지 못했습니다. 시스템 기본 폰트를 시도합니다.');
 }
+
 
 
 
@@ -858,19 +861,21 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
         Requirements:
         1. Prompt: Photorealistic, high-end editorial photography style. Professional and realistic. 
         2. No Fictional Characters: Avoid Batman, superheroes, or cartoons. Focus on real-world objects, people, or environments.
-        3. Keywords: 3 precise English words for stock photo search (e.g., "laptop,repair,tools").
+        3. Keywords: Provide 3-4 precise English nouns that are visually distinct for this specific topic (e.g., for "AI in medicine", use "doctor,microscope,hospital,tablet"). Avoid generic terms like "technology,business" if possible.
         
         Output only JSON: {"sdPrompt": "...", "keywords": "word1,word2,word3"}`);
 
         let aiData;
         try {
-            // JSON 블록만 안전하게 추출
             const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
             const jsonStr = jsonMatch ? jsonMatch[0] : aiResponse;
             aiData = JSON.parse(jsonStr);
         } catch (e) {
-            aiData = { sdPrompt: prompt, keywords: "technology,business,office" };
+            // 주제 기반 최소한의 키워드 자동 생성
+            const fallbackKeywords = prompt.split(' ').slice(0, 3).join(',');
+            aiData = { sdPrompt: prompt, keywords: fallbackKeywords || "innovation,future,work" };
         }
+
 
         const cleanPrompt = aiData.sdPrompt || prompt;
         report(`🎨 [이미지 설계]: ${cleanPrompt.substring(0, 100)}${cleanPrompt.length > 100 ? '...' : ''}`);
@@ -878,46 +883,70 @@ async function genImg(prompt, model, idx, ratio = '16:9') {
         let imageUrl = '';
         const kieKey = process.env.KIE_API_KEY;
 
-        // 1. Kie.ai (Premium Image Generation)
+        // 1. Kie.ai (Premium Image Generation - z-image Optimized for Cost & Speed)
         if (kieKey && kieKey.length > 5) {
             try {
-                report(`   ㄴ [Kie.ai] z-image 호출 중...`);
+                // [KIE_ZIMAGE_FIX]: 다시 가성비 최강인 z-image로 복구하며 세로 비율 지원 확인
+                const targetModel = 'z-image';
+                report(`   ㄴ [Kie.ai] ${targetModel} 호출 중 (Ratio: ${ratio})...`);
+                
                 const cr = await axios.post('https://api.kie.ai/api/v1/jobs/createTask', {
-                    model: 'z-image',
-                    input: { prompt: cleanPrompt + ', masterpiece, photorealistic, 8k, highly detailed', aspect_ratio: ratio }
-                }, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 40000 }); // 타임아웃 40초로 연장
+                    model: targetModel,
+                    input: { 
+                        prompt: cleanPrompt + ', photorealistic, 8k, highly detailed, masterpieces',
+                        aspect_ratio: ratio // '16:9', '9:16', '1:1' 등 (z-image 공식 지원)
+                    }
+                }, { 
+                    headers: { 
+                        'Authorization': `Bearer ${kieKey.trim()}`,
+                        'Content-Type': 'application/json'
+                    }, 
+                    timeout: 45000 
+                });
 
                 const tid = cr.data.taskId || cr.data.data?.taskId;
                 if (tid) {
-                    for (let a = 0; a < 20; a++) { // 최대 120초까지 대기
+                    for (let a = 0; a < 25; a++) { // 최대 150초까지 대기
                         await new Promise(r => setTimeout(r, 6000));
-                        const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { headers: { Authorization: 'Bearer ' + kieKey }, timeout: 20000 });
+                        const pr = await axios.get('https://api.kie.ai/api/v1/jobs/recordInfo?taskId=' + tid, { 
+                            headers: { Authorization: 'Bearer ' + kieKey }, 
+                            timeout: 20000 
+                        });
+                        
                         const state = pr.data.state || pr.data.data?.state;
-                        if (state === 'success') {
+                        if (state === 'success' || state === 'SUCCESS') {
+                            // [CRITICAL]: resultJson은 이스케이프된 문자열로 오므로 JSON.parse 필수
                             const resData = pr.data.resultJson || pr.data.data?.resultJson;
                             const resJson = typeof resData === 'string' ? JSON.parse(resData) : resData;
                             imageUrl = resJson.resultUrls[0];
                             break;
                         }
-                        if (state === 'fail' || state === 'failed') break;
+                        if (state === 'fail' || state === 'failed') {
+                            const failMsg = pr.data.msg || pr.data.data?.msg || 'unknown error';
+                            report(`   ㄴ [Kie.ai] 생성 실패: ${failMsg}`, 'warning');
+                            break;
+                        }
                     }
+                } else {
+                    const errMsg = cr.data.msg || 'No Task ID';
+                    report(`   ㄴ [Kie.ai] 태스크 생성 실패: ${errMsg}`, 'warning');
                 }
-            } catch (e) { report(`   ㄴ [Kie.ai] 중단 (${e.message.substring(0, 30)}): 차선책(Premium Stock)으로 전환`, 'warning'); }
+            } catch (e) { 
+                const errDetail = e.response?.data?.msg || e.message;
+                report(`   ㄴ [Kie.ai] 중단 (${errDetail.substring(0, 50)}): 차선책으로 전환`, 'warning'); 
+            }
         }
 
-        // 2. [RELEVANCE_FIX] Improved Stock Photo Fallback (Unsplash 기반으로 교체하여 고양이 방지)
+
+        // 2. [DYNAMIC_RELEVANCE_FIX]: Unsplash source 는 서비스 중단 중이므로 대체 소스 사용
         if (!imageUrl) {
-            const tags = (aiData.keywords || 'technology,innovation,business').replace(/\s/g, '');
-
-            // LoremFlickr(고양이 원인)를 완전히 배제하고 Unsplash 고화질 경로만 사용
-            imageUrl = `https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=1080&auto=format&fit=crop`; // 기본값: Tech Office
-
-            if (tags.includes('code') || tags.includes('software')) imageUrl = 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1080';
-            else if (tags.includes('cooking') || tags.includes('food')) imageUrl = 'https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1080';
-            else if (tags.includes('money') || tags.includes('crypto')) imageUrl = 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?q=80&w=1080';
-
-            report(`   ㄴ [Stock Fallback] Unsplash 전문 이미지 매칭 (Keywords: ${tags})`);
+            const tags = aiData.keywords || 'technology,business';
+            // LoremFlickr 는 키워드 매칭이 더 안정적입니다.
+            imageUrl = `https://loremflickr.com/1200/630/${encodeURIComponent(tags.split(',')[0])}`;
+            
+            report(`   ㄴ [Stable Stock Match] LoremFlickr 실시간 매칭 (Category: ${tags.split(',')[0]})`);
         }
+
 
         // 3. Image Hosting Service (ImgBB + Multi-rotation + Fallback)
         try {
@@ -1018,7 +1047,7 @@ async function genThumbnail(meta, model, idx = 0, ratio = '16:9') {
 
         // 오버레이 및 그라데이션 (가독성 향상)
         if (isPin) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)'; // 핀터레스트는 좀 더 어둡게
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'; // 핀터레스트 가독성을 위해 더 어둡게
             ctx.fillRect(0, 0, w, h);
         }
 
@@ -1033,17 +1062,22 @@ async function genThumbnail(meta, model, idx = 0, ratio = '16:9') {
         ctx.fillStyle = '#ffffff';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.8)';
-        ctx.shadowBlur = 12;
+        ctx.shadowColor = 'rgba(0,0,0,1)'; // 그림자 농도 최대로 (가독성 핵심)
+        ctx.shadowBlur = 18;
+        ctx.shadowOffsetX = 4;
+        ctx.shadowOffsetY = 4;
 
-        const mainTitle = (meta.mainTitle || meta.prompt || '').trim();
-        if (!mainTitle) throw new Error("분석된 썸네일 제목이 없습니다.");
+        // [TITLE_EXTRACTION_FIX]: meta 가 없더라도 fallback 을 통해 문구를 반드시 확보
+        const mainTitle = (meta.mainTitle || meta.thumbTitle || meta.prompt || 'Premium AI Insight').trim();
+        if (!mainTitle) throw new Error("분석된 썸네일 문구가 없습니다.");
 
         const isKorean = /[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(mainTitle);
         let fontSize = isPin ? (isKorean ? 72 : 62) : (isKorean ? 65 : 55);
 
-        // 폰트 적용
-        ctx.font = `bold ${fontSize}px "${activeFont}", "Malgun Gothic", "NanumGothic", sans-serif`;
+        // 폰트 적용 (등록된 weight: 'bold'를 명시적으로 호출)
+        const fontBase = `bold ${fontSize}px "${activeFont}"`;
+        const fallbackFonts = `"Malgun Gothic", "NanumGothic", "Apple SD Gothic Neo", sans-serif`;
+        ctx.font = `${fontBase}, ${fallbackFonts}`;
 
         // 텍스트 자동 줄바꿈 (Wrapping)
         let lines = [];
@@ -1076,11 +1110,12 @@ async function genThumbnail(meta, model, idx = 0, ratio = '16:9') {
             lines.push(currentLine.trim());
         }
 
-        // 줄수가 너무 많으면 폰트 크기 축소
+        // 줄수가 너무 많으면 폰트 크기 축소 및 재설정
         if (lines.length > 3) {
-            fontSize = Math.floor(fontSize * 0.8);
-            ctx.font = `bold ${fontSize}px "${activeFont}", "Malgun Gothic", "NanumGothic", sans-serif`;
+            fontSize = Math.floor(fontSize * 0.82);
+            ctx.font = `bold ${fontSize}px "${activeFont}", ${fallbackFonts}`;
         }
+
 
         // 텍스트 위치 계산 및 그리기
         const lineHeight = fontSize * 1.35;

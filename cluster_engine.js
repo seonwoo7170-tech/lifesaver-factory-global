@@ -1086,9 +1086,17 @@ async function genThumbnail(meta, model, idx = 0, ratio = '16:9') {
                 line = testLine;
             }
         }
-        ctx.fillText(line, w / 2, y);
+        ctx.fillText(line, w/2, y);
 
-        return cv.toBuffer('image/jpeg').toString('base64');
+        // [CRITICAL_FIX]: 생성된 썸네일(Canvas)을 버퍼로 변환 후 이미지 호스트에 업로드
+        const buffer = cv.toBuffer('image/jpeg');
+        const base64 = buffer.toString('base64');
+        
+        report(`   ㄴ [${isPin ? 'Pinterest' : 'Main'}] 썸네일 합성 완료, 호스팅 업로드 중...`);
+        const resultUrl = await uploadToImgHost(base64);
+        
+        // 업로드 실패 시 안전장치로 Base64 데이터 직접 반환 (Blogger 수용량 확인 필요)
+        return resultUrl || `data:image/jpeg;base64,${base64}`;
     } catch (e) {
         report(`⚠️ 썸네일 생성 실패: ${e.message}`, 'warning');
         return null;
